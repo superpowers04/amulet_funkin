@@ -36,7 +36,8 @@ return function(chart)
 				stepCrochet = crochet / 4
 			end
 			for nid,note in ipairs(SECTION.sectionNotes) do
-				note[2]=((SECTION.mustHitSection and note[2] or (note[2]+4))%8)+1
+				note[2]=(note[2]%4)+1
+				-- ((SECTION.mustHitSection and note[2] or (note[2]+4))%8)+1
 
 				if(note[2] < 5) then
 					note[3]= note[3] * stepCrochet
@@ -95,10 +96,12 @@ return function(chart)
 	ghosttaps = 0
 	notesHit = 0
 	notesEncountered=0
+	heldColor,unheldColor=vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
 
 	strumTransformAction = function(t) 
 		t.y = lerp(t.y,1,0.2)
 		t.x = lerp(t.x,1,0.2)
+		t.z = lerp(t.z,1,0.2)
 	end
 	-- strumSpriteAction = function(t) 
 	-- 	t = t.color
@@ -113,9 +116,15 @@ return function(chart)
 	end
 	for i,N in pairs(songMeta.songNotes) do
 		if(N[2] < 5) then
-			local transform = am.translate(0,0) ^ strumTransforms[N[2]] ^ arrowSprites[N[2]]
+			local SPR = strumTransforms[N[2]] ^ arrowSprites[N[2]]
+			local transform = am.translate(0,0) ^ SPR
+			local NOTE = {d=N,s=transform}
 			noteGroup:append(transform)
-			notes[#notes+1] = {d=N,s=transform}
+			if(N[3] ~= 0) then
+				NOTE.r = am.rect(0,0,SPR.width,N[3])
+				SPR:append(NOTE.r)
+			end
+			notes[#notes+1] = NOTE
 		end
 	end
 
@@ -140,23 +149,23 @@ return function(chart)
 		misses = misses + 1
 		combo = 0
 		scene:action("MISS",am.play(missSound,false,0.75 + ((id/4)*0.5)),0.5)
-		strumGroup:child(id).y = 0.8
-		strumGroup:child(id).x = 1.05
+		-- strumGroup:child(id).y = 0.8
+		strumGroup:child(id).y = 1.05
 		if(voices) then voices.volume = 0 end
 	end
 	function ghost(id)
 		ghosttaps = ghosttaps + 1
 		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),0.5)
-		strumGroup:child(id).y = 0.8
-		strumGroup:child(id).x = 1.1
+		-- strumGroup:child(id).y = 0.8
+		strumGroup:child(id).y = 1.1
 	end
 	function noteHit(id,diff)
 		notesEncountered=notesEncountered+1
 		combo = combo + 1
 		local close = (1 - math.abs(diff));
 		notesHit = notesHit + close
-		strumGroup:child(id).y = 1 + (close*0.3)
-		strumGroup:child(id).x = 1 - (close*0.1)
+		-- strumGroup:child(id).y = 1 + (close*0.3)
+		strumGroup:child(id).y = 1 - (close*0.1)
 		if(voices) then voices.volume = songMeta.voicesVol end
 
 	end
@@ -168,6 +177,9 @@ return function(chart)
 			local diff = (time - note.d[1]);
 			transform.y = (diff * songMeta.speed)
 			transform.hidden = diff > 4000
+			if(note.r) then
+				note.r.y2 = (note.d[3] * songMeta.speed)
+			end
 		end
 	end
 
@@ -178,6 +190,10 @@ return function(chart)
 				paused = false
 				if(voices) then voices:reset(time*0.001) end 
 				inst:reset(time*0.001)
+			end
+			if(win:key_pressed("escape")) then -- TODO ADD COUNTDOWN
+				win.scene = require('list')
+				return
 			end
 			txt.text=("PAUSED\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i\nNotes Left: %i/%i"):format(time,misses,ghosttaps,combo,(notesHit/notesEncountered)*100,#notes,noteExists)
 			return
@@ -193,6 +209,7 @@ return function(chart)
 		for i,v in pairs(buttons) do
 			just[i] = win:key_pressed(v)
 			down[i] = win:key_down(v)
+			noteSprites[i].color = down[i] and heldColor or unheldColor
 		end
 		local i = 0
 		while i < #notes do
@@ -214,6 +231,7 @@ return function(chart)
 				noteMiss(data)
 			end
 		end
+
 		for i,v in pairs(just) do
 			if(v) then
 				ghost(i)
@@ -232,9 +250,27 @@ return function(chart)
 
 	}
 	scene:child(1):append(startTracker:action(function()
+		if paused then 
+			if(win:key_pressed("enter")) then -- TODO ADD COUNTDOWN
+				paused = false
+			end
+			if(win:key_pressed("escape")) then -- TODO ADD COUNTDOWN
+				win.scene = require('list')
+				return
+			end
+			startTracker.text= ("%i\nPAUSED"):format((-math.floor(time/500))-1)
+			return
+		end
+		if(win:key_pressed("enter")) then
+			paused = true
+		end
+
 		local lastSecs = -math.floor(time/500)
 		time = time+(am.delta_time*1000)
 		local secs = -math.floor(time/500)
+		for i,v in pairs(buttons) do
+			noteSprites[i].color = win:key_down(v) and heldColor or unheldColor
+		end
 		if(lastSecs ~= secs and introSounds[secs]) then
 			startTracker:action('INTRO',am.play(introSounds[secs],false,1,0.5))
 		end
