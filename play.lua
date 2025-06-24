@@ -1,4 +1,5 @@
 return function(chart,instDir)
+	-- TODO - Unhardcode chart loading
 	local buttons = {'d','f','j','k'}
 
 

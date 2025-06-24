@@ -7,7 +7,7 @@ end
 
 
 local songList = am.group{}
-local group = am.group{am.sprite("p.\n.p\np."),songList}
+local group = am.group{songList}
 
 local songs = {}
 do
