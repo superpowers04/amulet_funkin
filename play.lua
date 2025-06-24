@@ -1,5 +1,5 @@
-return function(chart)
-	buttons = {'d','f','j','k'}
+return function(chart,instDir)
+	local buttons = {'d','f','j','k'}
 
 
 	local PWD = os.getenv('PWD')
@@ -11,9 +11,9 @@ return function(chart)
 			
 		},
 		scale = 10,
-		speed = 1,
-		voicesVol = 0.5,
-		instVol = 0.4,
+		speed = 1.2,
+		voicesVol = 0.4,
+		instVol = 0.3,
 	}
 
 
@@ -25,8 +25,8 @@ return function(chart)
 	local songNotes = songMeta.songNotes
 	do -- SONG PARSING
 		local str = am.parse_json(am.load_string(chart))
-		songMeta.bpm = str.song.bpm
-		local bpm = songMeta.bpm
+		songMeta.bpm = math.abs(str.song.bpm)
+		local bpm = math.abs(songMeta.bpm)
 		local crochet = ((60 / bpm) * 1000)
 		local stepCrochet = crochet / 4
 		for i,SECTION in ipairs(str.song.notes) do
@@ -40,16 +40,17 @@ return function(chart)
 				-- ((SECTION.mustHitSection and note[2] or (note[2]+4))%8)+1
 
 				if(note[2] < 5) then
-					note[3]= note[3] * stepCrochet
+					-- if note[3] > 0 then note[3] = note[3]*stepCrochet end
 					songNotes[#songNotes+1] = note
 				end
 			end
 		end
+		table.sort(songNotes,function(a,b) return a[1] < b[1] end)
 	end
 
-	inst = am.track(am.load_audio(chart:gsub('[^/]+$','').."Inst.ogg"),false,1,songMeta.instVol)
+	inst = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Inst.ogg"),false,1,songMeta.instVol)
 	pcall(function()
-		voices = am.track(am.load_audio(chart:gsub('[^/]+$','').."Voices.ogg"),false,1,songMeta.voicesVol)
+		voices = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Voices.ogg"),false,1,songMeta.voicesVol)
 	end)
 
 
@@ -86,17 +87,19 @@ return function(chart)
 		return a + (b - a) * t
 	end
 
-	noteGroup = am.group()
-	strumGroup = am.group()
-	strumTransforms = {}
-	notes = {}
-	pressed = {false,false,false,false}
-	misses = 0
-	combo = 0
-	ghosttaps = 0
-	notesHit = 0
-	notesEncountered=0
-	heldColor,unheldColor=vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
+	local noteGroup = am.group()
+	local strumGroup = am.group()
+	local strumTransforms = {}
+	local notes = {}
+	local pressed = {false,false,false,false}
+	local misses = 0
+	local combo = 0
+	local ghosttaps = 0
+	local notesHit = 0
+	local notesEncountered=0
+	local heldColor,unheldColor=vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
+	local paused = false
+	local queuedNotes = {}
 
 	strumTransformAction = function(t) 
 		t.y = lerp(t.y,1,0.2)
@@ -107,28 +110,21 @@ return function(chart)
 	-- 	t = t.color
 	-- 	t.y = lerp(t.y,1,0.2)--;t.y=t.x;
 	-- end
+	function getStrumPosition(i)
+		return am.translate(((10*i)*songMeta.scale),10) ^ am.scale(songMeta.scale)
+	end
 	for i,N in pairs(noteSprites) do
 		-- N:action(strumSpriteAction)
-		local transform = am.translate(((10*i)*songMeta.scale),10) ^ am.scale(songMeta.scale) 
-		strumGroup:append(am.scale(1):action(strumTransformAction) ^ transform ^ N)
-		local transform = am.translate(((10*i)*songMeta.scale),10) ^ am.scale(songMeta.scale) 
-		strumTransforms[i] = transform
+		strumGroup:append(am.scale(1):action(strumTransformAction) ^ getStrumPosition(i) ^ N)
+
 	end
 	for i,N in pairs(songMeta.songNotes) do
 		if(N[2] < 5) then
-			local SPR = strumTransforms[N[2]] ^ arrowSprites[N[2]]
-			local transform = am.translate(0,0) ^ SPR
-			local NOTE = {d=N,s=transform}
-			noteGroup:append(transform)
-			if(N[3] ~= 0) then
-				NOTE.r = am.rect(0,0,SPR.width,N[3])
-				SPR:append(NOTE.r)
-			end
-			notes[#notes+1] = NOTE
+			queuedNotes[#queuedNotes+1] = N
 		end
 	end
 
-	noteExists = #notes
+	noteExists = #queuedNotes
 
 	txt = am.text('');
 	scene = am.translate(-200,200) ^ am.group{
@@ -140,22 +136,22 @@ return function(chart)
 
 	tracker:action(am.play(inst))
 	if(voices) then tracker:action(am.play(voices)) end
-	missSound = am.sfxr_synth({})
-	ghostSound = am.sfxr_synth({})
+	missSound = am.load_audio('assets/sounds/missnote1.ogg')
+	ghostSound = am.load_audio('assets/sounds/missnote1.ogg')
 	local time = 0
 
 	function noteMiss(id)
 		notesEncountered=notesEncountered+1
 		misses = misses + 1
 		combo = 0
-		scene:action("MISS",am.play(missSound,false,0.75 + ((id/4)*0.5)),0.5)
+		scene:action("MISS",am.play(missSound,false,0.75 + ((id/4)*0.5)),0.3)
 		-- strumGroup:child(id).y = 0.8
 		strumGroup:child(id).y = 1.05
 		if(voices) then voices.volume = 0 end
 	end
 	function ghost(id)
 		ghosttaps = ghosttaps + 1
-		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),0.5)
+		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),0.3)
 		-- strumGroup:child(id).y = 0.8
 		strumGroup:child(id).y = 1.1
 	end
@@ -171,25 +167,55 @@ return function(chart)
 	end
 
 	function updateNoteVisuals()
-		for i, note in pairs(notes) do
-			local d = note.d[2]
-			local transform = note.s;
-			local diff = (time - note.d[1]);
-			transform.y = (diff * songMeta.speed)
-			transform.hidden = diff > 4000
-			if(note.r) then
-				note.r.y2 = (note.d[3] * songMeta.speed)
+		local speed = songMeta.speed
+		while(queuedNotes[1] and queuedNotes[1][1]-time < 4000) do
+			local N = table.remove(queuedNotes,1)
+			local SPR = getStrumPosition(N[2]) ^ arrowSprites[N[2]]
+			local transform = am.translate(0,0) ^ SPR
+			local NOTE = {t=N[1],d=N,s=transform}
+			noteGroup:append(transform)
+			notes[#notes+1] = NOTE
+			if(N[3] ~= 0) then
+				-- local N = table.remove(queuedNotes,1)
+				-- local SPR = strumTransforms[N[2]] ^ arrowSprites[N[2]]
+				-- local transform = am.translate(0,0) ^ SPR
+				-- local NOTE = {t=N[3],d=N,s=transform}
+				-- print('HOLD',N[1],N[3])
+				-- noteGroup:append(transform)
+				NOTE.endTime = N[3]+NOTE.t
+				NOTE.r = am.rect(-5,0,25,-math.abs(math.floor(N[3]*speed)),vec4(1,1,1,1))
+				-- print(NOTE.r.y2,speed)
+				SPR:append(NOTE.r)
+				-- notes[#notes+1] = NOTE
 			end
+
+		end
+		for i, note in pairs(notes) do
+			local d
+			if(note.r and note.p) then
+				d = time
+				note.r.y2 = -(note.endTime-time)
+				print(note.r.y2)
+				-- note.r.y2 = -(note.d[3] * songMeta.speed)
+			else
+				d= note.t
+			end
+			local transform = note.s;
+			local diff = (time - d);
+			transform.y = (diff * speed)
+			-- transform.hidden = diff > 4000
 		end
 	end
 
 
 	tracker:action(function(scene)
 		if paused then 
+			if(voices) then voices:reset(time*0.001) end 
+			inst:reset(time*0.001)
 			if(win:key_pressed("enter")) then -- TODO ADD COUNTDOWN
 				paused = false
-				if(voices) then voices:reset(time*0.001) end 
-				inst:reset(time*0.001)
+				inst.volume = songMeta.instVol
+				if(voices) then voices.volume = songMeta.voicesVol end
 			end
 			if(win:key_pressed("escape")) then -- TODO ADD COUNTDOWN
 				win.scene = require('list')
@@ -199,32 +225,60 @@ return function(chart)
 			return
 		end
 		time = time+(am.delta_time*1000)
-		txt.text=("Time: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i\nNotes Left: %i/%i"):format(time,misses,ghosttaps,combo,(notesHit/notesEncountered)*100,#notes,noteExists)
 		if(win:key_pressed("enter")) then
 			paused = true
+			inst.volume = 0
+			if(voices) then voices.volume = 0 end
 		end
 
 
 		local down,just = {},{}
 		for i,v in pairs(buttons) do
-			just[i] = win:key_pressed(v)
-			down[i] = win:key_down(v)
-			noteSprites[i].color = down[i] and heldColor or unheldColor
+			local pressed = win:key_pressed(v)
+			local isDown = win:key_down(v) or pressed
+			just[i] = pressed
+			down[i] = isDown
+			noteSprites[i].color = isDown and heldColor or unheldColor
 		end
 		local i = 0
+		local pressed = {}
 		while i < #notes do
 			i = i + 1
 			local note = notes[i]
 			if(note == nil) then break end
-			local diff = (time - note.d[1]) / 140
+			local noteTime = (note.vt or note.t)
+			local diff = (time - noteTime)
 			local data = note.d[2]
-			if(math.abs(diff) < 1 and just[data]) then
+			local diffFloat = diff/140
+			note.p = false
+			if(math.abs(diffFloat) < 1 and note.r and down[data]) then
+				note.vt = time
+				if(note.endTime - time <= 0) then
+					noteGroup:remove(note.s)
+					table.remove(notes,i)
+					i=i-1
+					-- just[data] = nil
+					pressed[data] = time
+					noteHit(data,diffFloat)
+				else
+					note.p = true
+					if(voices) then voices.volume = songMeta.voicesVol end
+				end
+			elseif(pressed[data] and (math.abs(noteTime-pressed[data]) < 7)) then
+				noteGroup:remove(note.s)
+				table.remove(notes,i)
+				-- notesEncountered = notesEncountered - 1
+				-- print(note.d[1],pressed[data])
+				i=i-1
+			elseif(math.abs(diffFloat) < 1 and not note.r and just[data] ~= false) then
 				noteGroup:remove(note.s)
 				just[data] = false
+				pressed[data] = noteTime
 				table.remove(notes,i)
 				i=i-1
-				noteHit(data,diff)
-			elseif(diff > 1) then
+				noteHit(data,diffFloat)
+				
+			elseif(diffFloat > 1) then
 				noteGroup:remove(note.s)
 				table.remove(notes,i)
 				i=i-1
@@ -233,11 +287,18 @@ return function(chart)
 		end
 
 		for i,v in pairs(just) do
-			if(v) then
+			if(v and not pressed[i]) then
 				ghost(i)
 			end
 		end
 		updateNoteVisuals()
+		txt.text=("Time: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+			time,
+			misses,ghosttaps,
+			combo,
+			(notesHit/notesEncountered)*100,notesHit,notesEncountered,
+			#notes+#queuedNotes,noteExists
+		)
 	end)
 	local startTracker = am.text('')
 	time = -2500
