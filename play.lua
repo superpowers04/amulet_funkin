@@ -1,4 +1,7 @@
-return function(chart,instDir)
+local this
+this = function(...)
+	local arguments = {...}
+	local chart,instDir = ...
 	-- TODO - Unhardcode chart loading
 	local buttons = {'d','f','j','k'}
 
@@ -20,9 +23,11 @@ return function(chart,instDir)
 
 	if not chart then 
 		print('no bitches')
-		return am.text('NO CHART')
+		return require('results')('No chart!\nPress Enter, Space, Escape or Backspace to return to list',function()win.scene = require('list') end,function()win.scene = require('list') end)
 	end
 	local scene = am.group()
+	scene.arguments = arguments
+	scene.ENV = _ENV
 	local songNotes = songMeta.songNotes
 	do -- SONG PARSING
 		local str = am.parse_json(am.load_string(chart))
@@ -48,14 +53,17 @@ return function(chart,instDir)
 		end
 		table.sort(songNotes,function(a,b) return a[1] < b[1] end)
 	end
-
-	inst = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Inst.ogg"),false,1,songMeta.instVol)
+	local inst_buffer = am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Inst.ogg")
+	local songLength = inst_buffer.length*1000
+	print(songLength)
+	local inst = am.track(inst_buffer,false,1,songMeta.instVol)
+	local voices
 	pcall(function()
 		voices = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Voices.ogg"),false,1,songMeta.voicesVol)
 	end)
 
 
-	noteSprites = { am.sprite([[
+	local noteSprites = { am.sprite([[
 	.mm
 	mm.
 	.mm]]), am.sprite([[
@@ -69,7 +77,7 @@ return function(chart,instDir)
 	.rr
 	rr.]]),
 	}
-	arrowSprites = { am.sprite([[
+	local arrowSprites = { am.sprite([[
 	.MM
 	MMM
 	.MM]]), am.sprite([[
@@ -124,13 +132,14 @@ return function(chart,instDir)
 
 	noteExists = #queuedNotes
 
-	txt = am.text('');
+	txt = am.text('',nil,"LEFT","TOP");
 	scene = am.translate(-200,200) ^ am.group{
 		strumGroup,
 		noteGroup,
 	}
 
-	local tracker = am.translate(-10,-40) ^ txt
+	local tracker = am.translate(-100,-100) ^ txt
+	local startTracker = am.translate(-110,-20) ^ txt
 
 	tracker:action(am.play(inst))
 	if(voices) then tracker:action(am.play(voices)) end
@@ -138,7 +147,7 @@ return function(chart,instDir)
 	ghostSound = am.load_audio('assets/sounds/missnote1.ogg')
 	local time = 0
 
-	function noteMiss(id)
+	local function noteMiss(id)
 		notesEncountered=notesEncountered+1
 		misses = misses + 1
 		combo = 0
@@ -147,13 +156,13 @@ return function(chart,instDir)
 		strumGroup:child(id).y = 1.05
 		if(voices) then voices.volume = 0 end
 	end
-	function ghost(id)
+	local function ghost(id)
 		ghosttaps = ghosttaps + 1
 		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),0.3)
 		-- strumGroup:child(id).y = 0.8
 		strumGroup:child(id).y = 1.1
 	end
-	function noteHit(id,diff)
+	local function noteHit(id,diff)
 		notesEncountered=notesEncountered+1
 		combo = combo + 1
 		local close = (1 - math.abs(diff));
@@ -162,8 +171,7 @@ return function(chart,instDir)
 		strumGroup:child(id).y = 1 - (close*0.1)
 		if(voices) then voices.volume = songMeta.voicesVol end
 	end
-
-	function updateNoteVisuals()
+	local function updateNoteVisuals()
 		local speed = songMeta.speed
 		while(queuedNotes[1] and queuedNotes[1][1]-time < 4000) do
 			local N = table.remove(queuedNotes,1)
@@ -174,7 +182,7 @@ return function(chart,instDir)
 			notes[#notes+1] = NOTE
 			if(N[3] ~= 0) then
 				NOTE.endTime = N[3]+NOTE.t
-				NOTE.r = am.rect(-5,0,25,-math.abs(math.floor(N[3]*speed)),vec4(1,1,1,1))
+				NOTE.r = am.rect(-5,0,5,-math.abs(math.floor(N[3]*speed)),vec4(1,1,1,1))
 				-- print(NOTE.r.y2,speed)
 				SPR:append(NOTE.r)
 				-- notes[#notes+1] = NOTE
@@ -194,7 +202,18 @@ return function(chart,instDir)
 			transform.y = (diff * speed)
 		end
 	end
-
+	local function on_finish()
+		win.scene = require('results')(("%s\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+			chart:match('[^/]+$'),
+			time,
+			misses,ghosttaps,
+			combo,
+			(notesHit/notesEncountered)*100,notesHit,notesEncountered,
+			#notes+#queuedNotes,noteExists
+		)..'\n\nPress Enter, or Space to restart\nEscape or Backspace to return to list',
+			function() win.scene = require('play')(unpack(args)) end,
+			function() win.scene = require('list') end)
+	end
 
 	tracker:action(function(scene)
 		if paused then 
@@ -209,16 +228,23 @@ return function(chart,instDir)
 				win.scene = require('list')
 				return
 			end
-			txt.text=("PAUSED\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i\nNotes Left: %i/%i"):format(time,misses,ghosttaps,combo,(notesHit/notesEncountered)*100,#notes,noteExists)
+			if(win:key_pressed("r")) then -- TODO ADD COUNTDOWN
+				win.scene = am.load_script('play.lua')()(unpack(arguments))
+				return
+			end
+			txt.text=("PAUSED\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i\nNotes Left: %i/%i\n\nPress enter to unpause\nPress R to restart\nPress ESC to go back to list"):format(time,misses,ghosttaps,combo,(notesHit/notesEncountered)*100,#notes,noteExists)
 			return
 		end
 		time = time+(am.delta_time*1000)
+		if(time > songLength) then
+			on_finish()
+			return
+		end
 		if(win:key_pressed("enter")) then
 			paused = true
 			inst.volume = 0
 			if(voices) then voices.volume = 0 end
 		end
-
 
 		local down,just = {},{}
 		for i,v in pairs(buttons) do
@@ -238,10 +264,12 @@ return function(chart,instDir)
 			local diff = (time - noteTime)
 			local data = note.d[2]
 			local diffFloat = diff/140
+			local _notep = note.p
 			note.p = false
-			if(math.abs(diffFloat) < 1 and note.r and (just[data] or note.p and down[data])) then
+			if(math.abs(diffFloat) < 1 and note.r and (just[data] or _notep and down[data])) then
 				note.vt = time
 				down[data] = false
+				note.p = true
 				if(note.endTime - time <= 0) then
 					noteGroup:remove(note.s)
 					table.remove(notes,i)
@@ -250,7 +278,6 @@ return function(chart,instDir)
 					pressed[data] = time
 					noteHit(data,diffFloat)
 				else
-					note.p = true
 					pressed[data] = time
 					if(voices) then voices.volume = songMeta.voicesVol end
 				end
@@ -291,7 +318,6 @@ return function(chart,instDir)
 			#notes+#queuedNotes,noteExists
 		)
 	end)
-	local startTracker = am.text('')
 	time = -2500
 
 	local introSounds = {
@@ -310,7 +336,7 @@ return function(chart,instDir)
 				win.scene = require('list')
 				return
 			end
-			startTracker.text= ("%i\nPAUSED"):format((-math.floor(time/500))-1)
+			txt.text= ("%i\nPAUSED"):format((-math.floor(time/500))-1)
 			return
 		end
 		if(win:key_pressed("enter")) then
@@ -326,7 +352,7 @@ return function(chart,instDir)
 		if(lastSecs ~= secs and introSounds[secs]) then
 			startTracker:action('INTRO',am.play(introSounds[secs],false,1,0.5))
 		end
-		startTracker.text = ("%i"):format(secs-1)
+		txt.text = ("%i"):format(secs-1)
 		updateNoteVisuals()
 		if(time > 0) then
 			time = 0
@@ -336,3 +362,4 @@ return function(chart,instDir)
 	end))
 	return scene
 end
+return this
