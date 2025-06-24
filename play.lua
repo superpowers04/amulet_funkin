@@ -102,9 +102,8 @@ return function(chart,instDir)
 	local queuedNotes = {}
 
 	strumTransformAction = function(t) 
-		t.y = lerp(t.y,1,0.2)
-		t.x = lerp(t.x,1,0.2)
-		t.z = lerp(t.z,1,0.2)
+		t.y = lerp(t.y,1,am.delta_time)
+		t.x = lerp(t.x,1,am.delta_time)
 	end
 	-- strumSpriteAction = function(t) 
 	-- 	t = t.color
@@ -114,9 +113,7 @@ return function(chart,instDir)
 		return am.translate(((10*i)*songMeta.scale),10) ^ am.scale(songMeta.scale)
 	end
 	for i,N in pairs(noteSprites) do
-		-- N:action(strumSpriteAction)
 		strumGroup:append(am.scale(1):action(strumTransformAction) ^ getStrumPosition(i) ^ N)
-
 	end
 	for i,N in pairs(songMeta.songNotes) do
 		if(N[2] < 5) then
@@ -163,7 +160,6 @@ return function(chart,instDir)
 		-- strumGroup:child(id).y = 1 + (close*0.3)
 		strumGroup:child(id).y = 1 - (close*0.1)
 		if(voices) then voices.volume = songMeta.voicesVol end
-
 	end
 
 	function updateNoteVisuals()
@@ -176,12 +172,6 @@ return function(chart,instDir)
 			noteGroup:append(transform)
 			notes[#notes+1] = NOTE
 			if(N[3] ~= 0) then
-				-- local N = table.remove(queuedNotes,1)
-				-- local SPR = strumTransforms[N[2]] ^ arrowSprites[N[2]]
-				-- local transform = am.translate(0,0) ^ SPR
-				-- local NOTE = {t=N[3],d=N,s=transform}
-				-- print('HOLD',N[1],N[3])
-				-- noteGroup:append(transform)
 				NOTE.endTime = N[3]+NOTE.t
 				NOTE.r = am.rect(-5,0,25,-math.abs(math.floor(N[3]*speed)),vec4(1,1,1,1))
 				-- print(NOTE.r.y2,speed)
@@ -194,16 +184,13 @@ return function(chart,instDir)
 			local d
 			if(note.r and note.p) then
 				d = time
-				note.r.y2 = -(note.endTime-time)
-				print(note.r.y2)
-				-- note.r.y2 = -(note.d[3] * songMeta.speed)
+				note.r.y2 = -(note.endTime-time)*speed
 			else
 				d= note.t
 			end
 			local transform = note.s;
 			local diff = (time - d);
 			transform.y = (diff * speed)
-			-- transform.hidden = diff > 4000
 		end
 	end
 
@@ -251,8 +238,9 @@ return function(chart,instDir)
 			local data = note.d[2]
 			local diffFloat = diff/140
 			note.p = false
-			if(math.abs(diffFloat) < 1 and note.r and down[data]) then
+			if(math.abs(diffFloat) < 1 and note.r and (just[data] or note.p and down[data])) then
 				note.vt = time
+				down[data] = false
 				if(note.endTime - time <= 0) then
 					noteGroup:remove(note.s)
 					table.remove(notes,i)
@@ -262,6 +250,7 @@ return function(chart,instDir)
 					noteHit(data,diffFloat)
 				else
 					note.p = true
+					pressed[data] = time
 					if(voices) then voices.volume = songMeta.voicesVol end
 				end
 			elseif(pressed[data] and (math.abs(noteTime-pressed[data]) < 7)) then
@@ -273,6 +262,7 @@ return function(chart,instDir)
 			elseif(math.abs(diffFloat) < 1 and not note.r and just[data] ~= false) then
 				noteGroup:remove(note.s)
 				just[data] = false
+				down[data] = false
 				pressed[data] = noteTime
 				table.remove(notes,i)
 				i=i-1
