@@ -14,10 +14,14 @@ this = function(...)
 		songNotes = {
 			
 		},
-		scale = 10,
 		speed = 1.2,
-		voicesVol = 0.4,
-		instVol = 0.3,
+	}
+	options={
+		scale = 12,
+		voicesVol = 0.5,
+		instVol = 0.45,
+		missVol = 0.5,
+		ghostVol = 0.4,
 	}
 
 
@@ -56,10 +60,10 @@ this = function(...)
 	local inst_buffer = am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Inst.ogg")
 	local songLength = inst_buffer.length*1000
 	print(songLength)
-	local inst = am.track(inst_buffer,false,1,songMeta.instVol)
+	local inst = am.track(inst_buffer,false,1,options.instVol)
 	local voices
 	pcall(function()
-		voices = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Voices.ogg"),false,1,songMeta.voicesVol)
+		voices = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Voices.ogg"),false,1,options.voicesVol)
 	end)
 
 
@@ -119,7 +123,7 @@ this = function(...)
 	-- 	t.y = lerp(t.y,1,0.2)--;t.y=t.x;
 	-- end
 	function getStrumPosition(i)
-		return am.translate(((10*i)*songMeta.scale),10) ^ am.scale(songMeta.scale)
+		return am.translate(((10*i)*options.scale),10) ^ am.scale(options.scale)
 	end
 	for i,N in pairs(noteSprites) do
 		strumGroup:append(am.scale(1):action(strumTransformAction) ^ getStrumPosition(i) ^ N)
@@ -151,14 +155,14 @@ this = function(...)
 		notesEncountered=notesEncountered+1
 		misses = misses + 1
 		combo = 0
-		scene:action("MISS",am.play(missSound,false,0.75 + ((id/4)*0.5)),0.3)
+		scene:action("MISS",am.play(missSound,false,0.75 + ((id/4)*0.5)),options.missVol)
 		-- strumGroup:child(id).y = 0.8
 		strumGroup:child(id).y = 1.05
 		if(voices) then voices.volume = 0 end
 	end
 	local function ghost(id)
 		ghosttaps = ghosttaps + 1
-		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),0.3)
+		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),options.ghostVol)
 		-- strumGroup:child(id).y = 0.8
 		strumGroup:child(id).y = 1.1
 	end
@@ -169,7 +173,7 @@ this = function(...)
 		notesHit = notesHit + close
 		-- strumGroup:child(id).y = 1 + (close*0.3)
 		strumGroup:child(id).y = 1 - (close*0.1)
-		if(voices) then voices.volume = songMeta.voicesVol end
+		if(voices) then voices.volume = options.voicesVol end
 	end
 	local function updateNoteVisuals()
 		local speed = songMeta.speed
@@ -221,8 +225,8 @@ this = function(...)
 			inst:reset(time*0.001)
 			if(win:key_pressed("enter")) then -- TODO ADD COUNTDOWN
 				paused = false
-				inst.volume = songMeta.instVol
-				if(voices) then voices.volume = songMeta.voicesVol end
+				inst.volume = options.instVol
+				if(voices) then voices.volume = options.voicesVol end
 			end
 			if(win:key_pressed("escape")) then -- TODO ADD COUNTDOWN
 				win.scene = require('list')
@@ -279,7 +283,7 @@ this = function(...)
 					noteHit(data,diffFloat)
 				else
 					pressed[data] = time
-					if(voices) then voices.volume = songMeta.voicesVol end
+					if(voices) then voices.volume = options.voicesVol end
 				end
 			elseif(pressed[data] and (math.abs(noteTime-pressed[data]) < 7)) then
 				noteGroup:remove(note.s)
