@@ -103,6 +103,7 @@ this = function(...)
 	RR.
 	RRR
 	RR.]]),
+	}
 
 	local lerp = function(a, b, t)
 		return a + (b - a) * t

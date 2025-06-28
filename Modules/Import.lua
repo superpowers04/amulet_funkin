@@ -22,7 +22,9 @@ import = {
 		local contents = (am and am.load_string or import.fromFile)(str)
 		if not contents then contents = am.load_string('Modules.'..str) end
 		if not contents then error('No such module' .. str) end
-		import.cache[str] = pack(load(contents,orig)())
+		local chunk,err = load(contents,orig)
+		if err then error(err) end
+		import.cache[str] = pack(chunk())
 		return unpack(import.cache[str])
 	end,
 	clearCache = function()
