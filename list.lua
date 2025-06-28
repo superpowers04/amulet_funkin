@@ -1,3 +1,4 @@
+import = require('Modules.Import')
 function execute(str)
 	local f = io.popen(str,'r')
 	local content =f:read('*a')
@@ -7,7 +8,11 @@ end
 
 
 local songList = am.group{}
-local group = am.group{songList}
+local animHandler = require('Modules.AnimationHandler')
+local group = am.group{
+	songList,
+	-- animHandler.sprite_anims('assets/NOTE_assets.png',{scroll=animHandler.frame(1850,154,157,154)},"scroll",24,true)
+}
 
 local songs = {}
 do
@@ -53,6 +58,9 @@ local hover,normal = vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
 
 local scroll = 1
 local keyRepeat = 0
+local resetNode = am.group()
+resetNode:action("reload",function() import.clearCache(); group:remove(resetNode) end)
+group:append(resetNode)
 group:action(function(g)
 	for i,v in pairs(songs) do
 		local child = songList:child(i)
@@ -77,7 +85,9 @@ group:action(function(g)
 		keyRepeat = 0.2
 	end
 	if(win:key_pressed('enter')) then
-		win.scene = am.load_script('play.lua')()(unpack(songs[scroll]))
+		win.scene = import.play(unpack(songs[scroll]))
+		group:append(resetNode)
+		
 	end
 end)
 

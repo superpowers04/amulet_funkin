@@ -1,4 +1,5 @@
 local this
+local import = require('Modules.Import')
 this = function(...)
 	local arguments = {...}
 	local chart,instDir = ...
@@ -10,18 +11,20 @@ this = function(...)
 	if(chart:sub(0,#PWD) == PWD) then
 		chart = chart:sub(#PWD)
 	end
-	local songMeta = {
-		songNotes = {
-			
-		},
-		speed = 1.2,
-	}
+
 	options={
 		scale = 12,
 		voicesVol = 0.5,
 		instVol = 0.45,
 		missVol = 0.5,
 		ghostVol = 0.4,
+		scrollDir = -1,
+	}
+	local songMeta = {
+		songNotes = {
+			
+		},
+		speed = 1.2 * options.scrollDir,
 	}
 
 
@@ -81,19 +84,11 @@ this = function(...)
 	.rr
 	rr.]]),
 	}
-	local arrowSprites = { am.sprite([[
-	.MM
-	MMM
-	.MM]]), am.sprite([[
-	BBB
-	BBB
-	.B.]]), am.sprite([[
-	.G.
-	GGG
-	GGG]]), am.sprite([[
-	RR.
-	RRR
-	RR.]]),
+	-- am.scale(0.01) ^ require("Modules.NoteLoader").getNote('purple0')
+	local arrowSprites = {am.scale(0.01) ^ (import("Modules.NoteLoader")).getNote('purple0'),
+		am.scale(0.01) ^ import("Modules.NoteLoader").getNote('blue0'),
+		am.scale(0.01) ^ import("Modules.NoteLoader").getNote('green0'),
+		am.scale(0.01) ^ import("Modules.NoteLoader").getNote('red0'),
 	}
 
 	local lerp = function(a, b, t)
@@ -108,6 +103,7 @@ this = function(...)
 	local misses = 0
 	local combo = 0
 	local ghosttaps = 0
+	local notesHitAccuracy = 0
 	local notesHit = 0
 	local notesEncountered=0
 	local heldColor,unheldColor=vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
@@ -137,12 +133,12 @@ this = function(...)
 	noteExists = #queuedNotes
 
 	txt = am.text('',nil,"LEFT","TOP");
-	scene = am.translate(-200,200) ^ am.group{
+	scene = am.translate(-200,0) ^ am.translate(0,200*options.scrollDir) ^ am.group{
 		strumGroup,
 		noteGroup,
 	}
 
-	local tracker = am.translate(-100,-100) ^ txt
+	local tracker = am.translate(-100,-120*options.scrollDir) ^ txt
 	local startTracker = am.translate(-110,-20) ^ txt
 
 	tracker:action(am.play(inst))
@@ -170,10 +166,14 @@ this = function(...)
 		notesEncountered=notesEncountered+1
 		combo = combo + 1
 		local close = (1 - math.abs(diff));
-		notesHit = notesHit + close
+		notesHitAccuracy = notesHitAccuracy+close
+		notesHit = notesHit + 1
 		-- strumGroup:child(id).y = 1 + (close*0.3)
 		strumGroup:child(id).y = 1 - (close*0.1)
 		if(voices) then voices.volume = options.voicesVol end
+	end
+	local function generateHoldNote(note)
+
 	end
 	local function updateNoteVisuals()
 		local speed = songMeta.speed
@@ -186,7 +186,7 @@ this = function(...)
 			notes[#notes+1] = NOTE
 			if(N[3] ~= 0) then
 				NOTE.endTime = N[3]+NOTE.t
-				NOTE.r = am.rect(-5,0,5,-math.abs(math.floor(N[3]*speed)),vec4(1,1,1,1))
+				NOTE.r = am.rect(-5,0,5,-N[3]*speed,vec4(1,1,1,1))
 				-- print(NOTE.r.y2,speed)
 				SPR:append(NOTE.r)
 				-- notes[#notes+1] = NOTE
@@ -207,7 +207,7 @@ this = function(...)
 		end
 	end
 	local function on_finish()
-		win.scene = require('results')(("%s\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+		win.scene = import('results')(("%s\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
 			chart:match('[^/]+$'),
 			time,
 			misses,ghosttaps,
@@ -215,10 +215,18 @@ this = function(...)
 			(notesHit/notesEncountered)*100,notesHit,notesEncountered,
 			#notes+#queuedNotes,noteExists
 		)..'\n\nPress Enter, or Space to restart\nEscape or Backspace to return to list',
-			function() win.scene = require('play')(unpack(args)) end,
+			function() win.scene = import('play')(unpack(args)) end,
 			function() win.scene = require('list') end)
 	end
-
+	local function getScoreText()
+		return ("Time: %i\nMisses/Ghost/Hit: %i/%i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+			time,
+			misses,ghosttaps,notesHit,
+			combo,
+			(notesHitAccuracy/notesEncountered)*100,notesHit,notesEncountered,
+			#notes+#queuedNotes,noteExists
+		)
+	end
 	tracker:action(function(scene)
 		if paused then 
 			if(voices) then voices:reset(time*0.001) end 
@@ -236,7 +244,7 @@ this = function(...)
 				win.scene = am.load_script('play.lua')()(unpack(arguments))
 				return
 			end
-			txt.text=("PAUSED\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i\nNotes Left: %i/%i\n\nPress enter to unpause\nPress R to restart\nPress ESC to go back to list"):format(time,misses,ghosttaps,combo,(notesHit/notesEncountered)*100,#notes,noteExists)
+			txt.text=("PAUSED\n%s\n\nPress enter to unpause\nPress R to restart\nPress ESC to go back to list"):format(time,getScoreText(),noteExists)
 			return
 		end
 		time = time+(am.delta_time*1000)
@@ -314,13 +322,7 @@ this = function(...)
 			end
 		end
 		updateNoteVisuals()
-		txt.text=("Time: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
-			time,
-			misses,ghosttaps,
-			combo,
-			(notesHit/notesEncountered)*100,notesHit,notesEncountered,
-			#notes+#queuedNotes,noteExists
-		)
+		txt.text=getScoreText()
 	end)
 	time = -2500
 
