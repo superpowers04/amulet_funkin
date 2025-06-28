@@ -11,8 +11,7 @@ function mod.getNote(anim)
 	end
 	print(#frames,anim)
 	table.sort(frames, function(a,b) return a.name > b.name end)
-
-	return animHandler.sprite_anims('assets/NOTE_assets.png',{scroll=frames},"scroll",24,true)
+	return animHandler.sprite_anims('assets/NOTE_assets.png',{scroll=frames},"scroll",24,true,nil,"center","center")
 end
 
 return mod

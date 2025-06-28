@@ -15,10 +15,10 @@ function mod.playAnim(spr,frames)
 	spr.frames = frames
 	spr.time = 0
 end
-function mod.sprite_anim(texture,frames,fps,loop)
+function mod.sprite_anim(texture,frames,fps,loop,color, halign, valign)
 	return mod.sprite_anims(texture,{def=frames},"def",fps,loop)
 end
-function mod.sprite_anims(texture,animations,anim,fps,loop)
+function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign)
 	if(type(texture) == "string") then
 		if texture:sub(-4) ~= ".png" then texture=texture..".png" end
 		texture = am.texture2d(texture)
@@ -36,7 +36,8 @@ function mod.sprite_anims(texture,animations,anim,fps,loop)
 		width=texture.width,
 		height=texture.height,
 	}
-	local node = am.sprite(spec)
+	local node = am.sprite(spec,color, halign, valign)
+	local ret = am.translate(0,0) ^ node
 	 -- if true then return node end
 	node.animations = animations
 	node.frames = animations[anim]
@@ -59,14 +60,23 @@ function mod.sprite_anims(texture,animations,anim,fps,loop)
 	function node:showFrame(frame)
 		local w,h = texture.width, texture.height
 		local spec = self.origSpec
-		spec.s1 = frame.x/w -- left
-		spec.t1 = frame.y/h --- bottom
-		spec.t2 = (frame.x+frame.h)/h -- up
-		spec.s2 = (frame.y+frame.w)/w -- right
-		spec.x1 = 0
-		spec.x2 = frame.h
-		spec.y1 = 0
-		spec.y2 = frame.w
+		local top = (frame.y)
+		local bottom = (frame.y+frame.h)
+		local left = (frame.x)
+		local right = (frame.x+frame.w)
+
+
+		spec.s1 = left/w
+		spec.t1 = (h-bottom)/h
+		spec.s2 = right/w
+		spec.t2 = (h-top)/h
+		spec.x1 = left
+		spec.y1 = top
+		spec.x2 = right
+		spec.y2 = bottom
+		width=w
+		height=h
+		ret.position2d = vec2(left*0.5,top*0.5)
 		-- spec.x1 = frame.w*-0.5
 		-- spec.x2 = frame.w*0.5
 		-- spec.y1 = frame.y*-0.5
@@ -92,6 +102,9 @@ function mod.sprite_anims(texture,animations,anim,fps,loop)
 		end
 		self:showFrame(self.frames[math.floor(time%#self.frames)+1])
 	end
-	return node:action(node.on_update)
+	function ret:playAnim(...) return node:playAnim(...) end
+	function ret:showFrame(...) return node:playAnim(...) end
+	node:action(node.on_update)
+	return ret
 end
 return mod

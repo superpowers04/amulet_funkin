@@ -85,11 +85,24 @@ this = function(...)
 	rr.]]),
 	}
 	-- am.scale(0.01) ^ require("Modules.NoteLoader").getNote('purple0')
-	local arrowSprites = {am.scale(0.01) ^ (import("Modules.NoteLoader")).getNote('purple0'),
-		am.scale(0.01) ^ import("Modules.NoteLoader").getNote('blue0'),
-		am.scale(0.01) ^ import("Modules.NoteLoader").getNote('green0'),
-		am.scale(0.01) ^ import("Modules.NoteLoader").getNote('red0'),
-	}
+	-- local arrowSprites = {am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('purple0'),
+	-- 	am.scale(0.05) ^ import("Modules.NoteLoader").getNote('blue0'),
+	-- 	am.scale(0.05) ^ import("Modules.NoteLoader").getNote('green0'),
+	-- 	am.scale(0.05) ^ import("Modules.NoteLoader").getNote('red0'),
+	-- }
+	local arrowSprites = { am.sprite([[
+	.MM
+	MMM
+	.MM]]), am.sprite([[
+	BBB
+	BBB
+	.B.]]), am.sprite([[
+	.G.
+	GGG
+	GGG]]), am.sprite([[
+	RR.
+	RRR
+	RR.]]),
 
 	local lerp = function(a, b, t)
 		return a + (b - a) * t
