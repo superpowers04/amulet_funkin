@@ -4,7 +4,10 @@ this = function(...)
 	local arguments = {...}
 	local chart,instDir = ...
 	-- TODO - Unhardcode chart loading
-	local buttons = {'d','f','j','k'}
+
+
+	options=import('SETTINGS')
+	local buttons = options.buttons
 
 
 	local PWD = os.getenv('PWD')
@@ -12,14 +15,6 @@ this = function(...)
 		chart = chart:sub(#PWD)
 	end
 
-	options={
-		scale = 12,
-		voicesVol = 0.5,
-		instVol = 0.45,
-		missVol = 0.5,
-		ghostVol = 0.4,
-		scrollDir = -1,
-	}
 	local songMeta = {
 		songNotes = {
 			
@@ -36,6 +31,8 @@ this = function(...)
 	scene.arguments = arguments
 	scene.ENV = _ENV
 	local songNotes = songMeta.songNotes
+	local both_sides = options.side == 2
+	local side = options.side == 1
 	do -- SONG PARSING
 		local str = am.parse_json(am.load_string(chart))
 		songMeta.bpm = math.abs(str.song.bpm)
@@ -49,12 +46,15 @@ this = function(...)
 				stepCrochet = crochet / 4
 			end
 			for nid,note in ipairs(SECTION.sectionNotes) do
-				note[2]=(note[2]%4)+1
-				-- ((SECTION.mustHitSection and note[2] or (note[2]+4))%8)+1
+				if(both_sides or side == SECTION.mustHitSection == (note[2]>4)) then
 
-				if(note[2] < 5) then
-					-- if note[3] > 0 then note[3] = note[3]*stepCrochet end
-					songNotes[#songNotes+1] = note
+					note[2]=(note[2]%4)+1
+					-- ((SECTION.mustHitSection and note[2] or (note[2]+4))%8)+1
+
+					if(note[2] < 5) then
+						-- if note[3] > 0 then note[3] = note[3]*stepCrochet end
+						songNotes[#songNotes+1] = note
+					end
 				end
 			end
 		end
@@ -152,8 +152,8 @@ this = function(...)
 		noteGroup,
 	}
 
-	local tracker = am.translate(-100,-120*options.scrollDir) ^ txt
-	local startTracker = am.translate(-110,-20) ^ txt
+	local tracker = am.translate(-180,-120*options.scrollDir) ^ txt
+	local startTracker = am.translate(-180,-20) ^ txt
 
 	tracker:action(am.play(inst))
 	if(voices) then tracker:action(am.play(voices)) end
@@ -229,15 +229,15 @@ this = function(...)
 			(notesHit/notesEncountered)*100,notesHit,notesEncountered,
 			#notes+#queuedNotes,noteExists
 		)..'\n\nPress Enter, or Space to restart\nEscape or Backspace to return to list',
-			function() win.scene = import('play')(unpack(args)) end,
-			function() win.scene = require('list') end)
+			function() SceneHandler:load_scene('play',arguments) end,
+			function() SceneHandler:load_scene('list') end)
 	end
 	local function getScoreText()
 		return ("Time: %i\nMisses/Ghost/Hit: %i/%i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
 			time,
 			misses,ghosttaps,notesHit,
 			combo,
-			(notesHitAccuracy/notesEncountered)*100,notesHit,notesEncountered,
+			notesHitAccuracy == 0 and notesEncountered == 0 and 100 or (notesHitAccuracy/notesEncountered)*100,notesHit,notesEncountered,
 			#notes+#queuedNotes,noteExists
 		)
 	end
@@ -251,14 +251,26 @@ this = function(...)
 				if(voices) then voices.volume = options.voicesVol end
 			end
 			if(win:key_pressed("escape")) then -- TODO ADD COUNTDOWN
-				win.scene = require('list')
+				SceneHandler:load_scene('list')
 				return
 			end
 			if(win:key_pressed("r")) then -- TODO ADD COUNTDOWN
-				win.scene = am.load_script('play.lua')()(unpack(arguments))
+				import.clearCache()
+				SceneHandler:load_scene('play',arguments)
+				-- win.scene = am.load_script('play.lua')()(unpack(arguments))
 				return
 			end
-			txt.text=("PAUSED\n%s\n\nPress enter to unpause\nPress R to restart\nPress ESC to go back to list"):format(time,getScoreText(),noteExists)
+			if(win:key_pressed("o")) then -- TODO ADD COUNTDOWN
+				import.clearCache()
+				local scene,options = import"options"
+				options.scene = 'play'
+				options.arguments = arguments
+				SceneHandler:set_scene(scene)
+				-- SceneHandler:load_scene('play',arguments)
+				-- win.scene = am.load_script('play.lua')()(unpack(arguments))
+				return
+			end
+			txt.text=("PAUSED\n%s\n\nPress enter to unpause\nPress O to open options\nPress R to restart\nPress ESC to go back to list"):format(time,getScoreText(),noteExists)
 			return
 		end
 		time = time+(am.delta_time*1000)
@@ -353,7 +365,7 @@ this = function(...)
 				paused = false
 			end
 			if(win:key_pressed("escape")) then -- TODO ADD COUNTDOWN
-				win.scene = require('list')
+				SceneHandler:load_scene('list')
 				return
 			end
 			txt.text= ("%i\nPAUSED"):format((-math.floor(time/500))-1)

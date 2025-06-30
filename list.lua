@@ -8,8 +8,13 @@ end
 
 
 local songList = am.group{}
-local animHandler = require('Modules.AnimationHandler')
+-- local animHandler = require('Modules.AnimationHandler')
 local group = am.group{
+	am.translate(-100,300)^am.text('Press O to open options'):action(function()
+		if(win:key_down('o')) then
+			SceneHandler:new_scene('options')
+		end
+	end),
 	songList,
 	-- animHandler.sprite_anims('assets/NOTE_assets.png',{scroll=animHandler.frame(1850,154,157,154)},"scroll",24,true)
 }
@@ -85,9 +90,8 @@ group:action(function(g)
 		keyRepeat = 0.2
 	end
 	if(win:key_pressed('enter')) then
-		win.scene = import.play(unpack(songs[scroll]))
+		SceneHandler:load_scene('play',songs[scroll])
 		group:append(resetNode)
-		
 	end
 end)
 

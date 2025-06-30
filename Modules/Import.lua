@@ -19,12 +19,13 @@ import = {
 		local orig = str
 		str=str:gsub('%.','/')
 		if str:sub(-4) ~= ".lua" then str = str .. ".lua" end
-		local contents = (am and am.load_string or import.fromFile)(str)
-		if not contents then contents = am.load_string('Modules.'..str) end
-		if not contents then error('No such module' .. str) end
-		local chunk,err = load(contents,orig)
-		if err then error(err) end
-		import.cache[str] = pack(chunk())
+		-- local contents = (am and am.load_string or import.fromFile)(str)
+		-- if not contents then contents = am.load_string('Modules/'..str) end
+		-- if not contents then error('No such module' .. str) end
+		-- local chunk,err = load(contents,orig)
+		-- if err then error(err) end
+		-- import.cache[str] = pack(chunk())
+		import.cache[str] = pack(dofile(str))
 		return unpack(import.cache[str])
 	end,
 	clearCache = function()
