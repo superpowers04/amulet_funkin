@@ -12,7 +12,7 @@ local songList = am.group{}
 local group = am.group{
 	am.translate(-100,300)^am.text('Press O to open options'):action(function()
 		if(win:key_down('o')) then
-			SceneHandler:new_scene('options')
+			SceneHandler:set_scene('options')
 		end
 	end),
 	songList,

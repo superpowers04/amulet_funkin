@@ -25,6 +25,22 @@ local options={
 		end
 	},
 	{
+		name = "Miss Sound Volume",
+		var = 'missVol',
+		increment = 0.01,max=10,min=0,
+		display = function(self,a) 
+			return self.name .. " : " ..math.floor(a*100).."%" 
+		end
+	},
+	{
+		name = "Ghosttap Sound Volume",
+		var = 'ghostVol',
+		increment = 0.01,max=10,min=0,
+		display = function(self,a) 
+			return self.name .. " : " ..math.floor(a*100).."%" 
+		end
+	},
+	{
 		name = "Chart type",
 		var = 'side',
 		values = {[0]="player",[1]="opponent",[2]="both"},
@@ -32,18 +48,25 @@ local options={
 		display = fromArray
 	},
 	{
-		name = "Scroll Direction",
+		name = "Scroll Direction/Speed",
 		var = 'scrollDir',
-		values = {[1]="UP",[-1]="DOWN"},
-		change = function(self,a) return a == 1 and -1 or 1 end,
-		display = fromArray
+		increment = 0.01,
+		change = function(self,v,a,enter) 
+			if enter then return -v end
+			if(a<0) then a = -a end
+			return v+(a*(0.01))
+		end,
+		display = function(s,a) return s.name .. " : " ..(a<0 and 'DOWNSCROLL/' .. -a or "UPSCROLL/" .. a) end
 	},
 }
 
 
 local hover,normal = vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
 local menuList = am.group{}
-local group = am.group{menuList}
+local group = am.group{
+	am.translate(-100,300)^am.text('Press Escape or Backspace to go back\nShift to change by 10'),
+	menuList
+}
 local function updateText(i)
 	local option = options[i]
 	menuList:child(i):child(1).text = option.display and option:display(settings[option.var]) or option.name .. " : " .. settings[option.var]
@@ -59,12 +82,12 @@ end
 
 local scroll = 1
 local keyRepeat = 0
-function changeOption(id,direction)
+function changeOption(id,direction,enter)
 	local setting = options[id]
 	local settingName = setting.var
 	local v = settings[settingName]
 	if(setting.change) then
-		settings[settingName] = setting:change(v,direction)
+		settings[settingName] = setting:change(v,direction,enter)
 	else
 		local value = v+((setting.increment or 1)*direction)
 		if(setting.min) then value = math.max(value,setting.min) end
@@ -96,8 +119,12 @@ group:action(function(g)
 		changeOption(scroll,-1 * (win:key_down('lshift') and 10 or 1))
 		keyRepeat = 0.2
 	end
-	if((win:key_down('right') or win:key_down('enter')) and keyRepeat <= 0) then
-		changeOption(scroll,1 * (win:key_down('lshift') and 10 or 1))
+	if((win:key_down('right') ) and keyRepeat <= 0) then
+		changeOption(scroll,1 * (win:key_down('lshift') and 10 or 1),win:key_down('enter'))
+		keyRepeat = 0.2
+	end
+	if(win:key_pressed('enter')) then
+		changeOption(scroll,1 * (win:key_down('lshift') and 10 or 1),true)
 		keyRepeat = 0.2
 	end
 
@@ -114,7 +141,8 @@ group:action(function(g)
 		local f= io.open('SETTINGS.lua','w')
 		f:write('return ' .. table.tostring(settings))
 		f:close()
-		SceneHandler:load_scene(group.scene or 'list',group.arguments)
+		-- SceneHandler:load_scene(group.scene or 'list',group.arguments)
+		SceneHandler.back_a_scene()
 		group.scene = nil
 		group.args = nil
 	end

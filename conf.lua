@@ -1,0 +1,5 @@
+title = "Super4K"
+author = "superpowers04"
+shortname = "Super4K"
+version = "0.0.1-dev"
+copyright_message = "Copyright © 2025 Superpowers04."

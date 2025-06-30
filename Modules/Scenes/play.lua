@@ -221,9 +221,9 @@ this = function(...)
 		end
 	end
 	local function on_finish()
-		win.scene = import('results')(("%s\nTime: %i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+		win.scene = import('results')(("%s\nTime: %2i:%i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
 			chart:match('[^/]+$'),
-			time,
+			math.floor(time/60000),math.floor(time/1000%60),
 			misses,ghosttaps,
 			combo,
 			(notesHit/notesEncountered)*100,notesHit,notesEncountered,
@@ -233,8 +233,8 @@ this = function(...)
 			function() SceneHandler:load_scene('list') end)
 	end
 	local function getScoreText()
-		return ("Time: %i\nMisses/Ghost/Hit: %i/%i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
-			time,
+		return ("Time: %i:%s\nMisses/Ghost/Hit: %i/%i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+			math.floor(time/60000),('%2i'):format(math.floor(time/1000%60)):gsub(' ','0'),
 			misses,ghosttaps,notesHit,
 			combo,
 			notesHitAccuracy == 0 and notesEncountered == 0 and 100 or (notesHitAccuracy/notesEncountered)*100,notesHit,notesEncountered,
@@ -256,32 +256,24 @@ this = function(...)
 			end
 			if(win:key_pressed("r")) then -- TODO ADD COUNTDOWN
 				import.clearCache()
-				SceneHandler:load_scene('play',arguments)
+				SceneHandler:reload_scene()
 				-- win.scene = am.load_script('play.lua')()(unpack(arguments))
 				return
 			end
 			if(win:key_pressed("o")) then -- TODO ADD COUNTDOWN
 				import.clearCache()
-				local scene,options = import"options"
-				options.scene = 'play'
-				options.arguments = arguments
-				SceneHandler:set_scene(scene)
+				SceneHandler:set_scene("options")
 				-- SceneHandler:load_scene('play',arguments)
 				-- win.scene = am.load_script('play.lua')()(unpack(arguments))
 				return
 			end
-			txt.text=("PAUSED\n%s\n\nPress enter to unpause\nPress O to open options\nPress R to restart\nPress ESC to go back to list"):format(time,getScoreText(),noteExists)
+			txt.text=("PAUSED\n%s\n\nPress enter to unpause\nPress O to open options\nPress R to restart\nPress ESC to go back to list"):format(getScoreText())
 			return
 		end
 		time = time+(am.delta_time*1000)
 		if(time > songLength) then
 			on_finish()
 			return
-		end
-		if(win:key_pressed("enter")) then
-			paused = true
-			inst.volume = 0
-			if(voices) then voices.volume = 0 end
 		end
 
 		local down,just = {},{}
@@ -349,6 +341,11 @@ this = function(...)
 		end
 		updateNoteVisuals()
 		txt.text=getScoreText()
+		if(win:key_pressed("enter")) then
+			paused = true
+			inst.volume = 0
+			if(voices) then voices.volume = 0 end
+		end
 	end)
 	time = -2500
 
