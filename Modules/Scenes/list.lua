@@ -1,4 +1,5 @@
 import = require('Modules.Import')
+PlatformUtils = import'Modules.PlatformUtils'
 function execute(str)
 	local f = io.popen(str,'r')
 	local content =f:read('*a')
@@ -23,7 +24,7 @@ local songs = {}
 do
 	local jsons = {}
 	local insts = {}
-	for line in execute('find mods/'):gmatch('[^\n]+') do
+	for _,line in pairs(PlatformUtils.getDirectory('mods/')) do
 		if(line:find('%.json$')) then
 			jsons[line] = true
 		elseif line:find('Inst.ogg$') then

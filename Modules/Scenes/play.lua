@@ -20,7 +20,7 @@ this = function(...)
 		songNotes = {
 			
 		},
-		speed = 1.2 * options.scrollDir,
+		speed = options.scrollDir,
 	}
 
 
@@ -48,12 +48,8 @@ this = function(...)
 			end
 			for nid,note in ipairs(SECTION.sectionNotes) do
 				if(both_sides or side == SECTION.mustHitSection == (note[2]>4)) then
-
 					note[2]=(note[2]%4)+1
-					-- ((SECTION.mustHitSection and note[2] or (note[2]+4))%8)+1
-
 					if(note[2] < 5) then
-						-- if note[3] > 0 then note[3] = note[3]*stepCrochet end
 						songNotes[#songNotes+1] = note
 					end
 				end
@@ -156,12 +152,12 @@ this = function(...)
 	noteExists = #queuedNotes
 
 	txt = am.text('',nil,"LEFT","TOP");
-	scene = am.translate(-200,0) ^ am.translate(0,200*options.scrollDir) ^ am.group{
+	scene = am.translate(-200,0) ^ am.translate(0,200*(options.scrollDir > 0 and 1 or -1)) ^ am.group{
 		noteGroup,
 		strumGroup,
 	}
 
-	local tracker = am.translate(-180,-120*options.scrollDir) ^ txt
+	local tracker = am.translate(-180,-120*(options.scrollDir > 0 and 1 or -1)) ^ txt
 	local startTracker = am.translate(-180,-20) ^ txt
 
 	tracker:action(am.play(inst))

@@ -1,5 +1,7 @@
 local mod = {}
 
-function mod.
+function mod.findSongs()
+	
+end
 
 return mod

@@ -53,7 +53,7 @@ local options={
 		increment = 0.01,
 		change = function(self,v,a,enter) 
 			if enter then return -v end
-			if(a<0) then a = -a end
+			if(v<0) then a = -a end
 			return v+(a*(0.01))
 		end,
 		display = function(s,a) return s.name .. " : " ..(a<0 and 'DOWNSCROLL/' .. -a or "UPSCROLL/" .. a) end
