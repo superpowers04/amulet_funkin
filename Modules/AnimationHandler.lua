@@ -1,5 +1,8 @@
 local mod = {}
 
+
+
+
 --[[local frame = {
 	x=0,y=0,w=32,h=32
 }]]
@@ -36,34 +39,47 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		width=texture.width,
 		height=texture.height,
 	}
-	local node = am.sprite(spec,color, halign, valign)
+	local node = am.sprite(spec,color, 'left','bottom')
 	local ret = am.translate(0,0) ^ node
 	 -- if true then return node end
 	node.animations = animations
-	node.frames = animations[anim]
+	-- node.frames = animations[anim]
+	ret.halign = halign
+	ret.valign = valign
 	node.origSpec = spec
 	node.time = 0
 	node.frameTime = (fps/60)*1000
 	node.playing = true
 	function node:playAnim(name,time)
-		if true then return end
-		self.frames = animations[name]
+		local frames= animations[name]
+
+		if not frames and name then 
+			local name = name:lower()
+			for i,v in pairs(animations) do
+				if(i:lower():match(name)) then
+					frames = v
+					break
+				end
+			end
+		end
+		if not frames then 
+			self.playing = false
+			print('Invalid animation:' .. tostring(name))
+			return false
+		end
+		self.frames=frames
 		self.time = time or 0
 		if(#self.frames == 1) then
 			self:showFrame(self.frames[1])
-			print(table.tostring(self.frames))
-			print(self.width,self.height)
 			self.playing = false
 		end
-
+		return true
 	end
 	function node:showFrame(frame)
 		local w,h = texture.width, texture.height
 		local spec = self.origSpec
-		local top = (frame.y)
-		local bottom = (frame.y+frame.h)
-		local left = (frame.x)
-		local right = (frame.x+frame.w)
+		local top,left = frame.y, frame.x
+		local bottom, right = top+frame.h, left+frame.w
 
 
 		spec.s1 = left/w
@@ -76,7 +92,7 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		spec.y2 = bottom
 		width=w
 		height=h
-		-- ret.position2d = vec2(-left,-top)
+
 		local offX,offY = 0,0
 		local posOffX,posOffY = -left,-top
 		if(ret.valign) then
@@ -98,19 +114,15 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 			end
 		end
 		ret.position2d = vec2(posOffX+offX,posOffY+offY)
-		-- spec.x1 = frame.w*-0.5
-		-- spec.x2 = frame.w*0.5
-		-- spec.y1 = frame.y*-0.5
-		-- spec.y2 = frame.y*0.5
-
-		-- spec.x2 = frame.w
-		-- spec.y1 = frame.y
-		-- spec.y2 = frame.h
-		-- print(table.tostring(spec))
 
 		self.source = spec
 	end
-	node:playAnim(anim)
+	if not node:playAnim(anim) and animations then
+		for i,v in pairs(animations) do
+			node:showFrame(v[1])
+		end
+	end
+
 	function node:on_update()
 		if(not self.playing) then return end
 		local lasttime = self.time
@@ -128,4 +140,29 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 	node:action(node.on_update)
 	return ret
 end
+mod.cache = {}
+
+function mod.fromSparrowAtlas(png,xml,defaultAnim,fps,ignoreCache)
+	local newF = mod.frame
+	local frames
+	if not ignoreCache and mod.cache[xml] then
+		frames = mod.cache[xml]
+	else
+		local xml = am.load_string(xml)
+		frames = { }
+		for tex,frame,x,y,w,h in xml:lower():gmatch('subtexture name="([^"]-)(%d+)" x="(%d+)" y="(%d+)" width="(%d+)" height="(%d+)"') do
+			local f = newF(tonumber(x),tonumber(y),tonumber(w),tonumber(h))
+			f.name = tex
+			if(not frames[tex]) then frames[tex] = {} end
+			frames[tex][tonumber(frame)+1] = f
+		end
+		-- for i,v in pairs(frames) do print(i,#v) end
+		if(not ignoreCache) then mod.cache[xml]=frames end
+	end
+	-- table.sort(frames, function(a,b) return a.name > b.name end)
+	local spr = mod.sprite_anims(png,frames,defaultAnim,fps or 24,true,nil,'center','center')
+	return spr
+end
+
+
 return mod

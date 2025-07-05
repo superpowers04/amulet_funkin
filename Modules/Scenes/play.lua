@@ -71,29 +71,21 @@ this = function(...)
 	end)
 
 
-	local noteSprites = { am.sprite([[
-	.mm
-	mm.
-	.mm]]), am.sprite([[
-	b.b
-	bbb
-	.b.]]), am.sprite([[
-	.g.
-	ggg
-	g.g]]), am.sprite([[
-	rr.
-	.rr
-	rr.]]),
+	local noteSprites = { 
+		am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('arrowLEFT'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('arrowDOWN'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('arrowUP'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('arrowRIGHT'),
 	}
 	local arrowSprites = {
-		am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('purple0'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('blue0'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('green0'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('red0'),
+		am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('purple'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('blue'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('green'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('red'),
 	}
-	for i,v in pairs(arrowSprites) do 
-		arrowSprites[i] = am.group{v,am.sprite("WW\nWW",nil,'center','center')}
-	end
+	-- for i,v in pairs(arrowSprites) do 
+	-- 	arrowSprites[i] = am.group{v,am.sprite("WW\nWW",nil,'center','center')}
+	-- end
 	-- local arrowSprites = { am.sprite([[
 	-- .MM
 	-- MMM
@@ -225,7 +217,8 @@ this = function(...)
 		end
 	end
 	local function on_finish()
-		win.scene = import('results')(("%s\nTime: %2i:%i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
+		
+		SceneHandler:set_scene('results',{("%s\nTime: %2i:%i\nMisses/Ghost: %i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
 			chart:match('[^/]+$'),
 			math.floor(time/60000),math.floor(time/1000%60),
 			misses,ghosttaps,
@@ -234,7 +227,7 @@ this = function(...)
 			#notes+#queuedNotes,noteExists
 		)..'\n\nPress Enter, or Space to restart\nEscape or Backspace to return to list',
 			function() SceneHandler:load_scene('play',arguments) end,
-			function() SceneHandler:load_scene('list') end)
+			function() SceneHandler:load_scene('list') end})
 	end
 	local function getScoreText()
 		return ("Time: %i:%s\nMisses/Ghost/Hit: %i/%i/%i\nCombo: %i\nAccuracy: %i(%i/%i)\nNotes Left: %i/%i"):format(
