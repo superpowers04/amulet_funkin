@@ -160,7 +160,9 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 	end
 	if (not anim or not self:playAnim(anim,0,loop)) and animations then
 		for i,v in pairs(animations) do
+			self.frames = {v[1]}
 			self:showFrame(v[1])
+			break
 		end
 	end
 
