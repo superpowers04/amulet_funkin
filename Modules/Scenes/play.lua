@@ -1,5 +1,6 @@
 local this
 local import = require('Modules.Import')
+local ISDEBUG = true
 this = function(...)
 	local arguments = {...}
 	local chart,instDir = ...
@@ -84,26 +85,29 @@ this = function(...)
 	.rr
 	rr.]]),
 	}
-	-- am.scale(0.01) ^ require("Modules.NoteLoader").getNote('purple0')
-	-- local arrowSprites = {am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('purple0'),
-	-- 	am.scale(0.05) ^ import("Modules.NoteLoader").getNote('blue0'),
-	-- 	am.scale(0.05) ^ import("Modules.NoteLoader").getNote('green0'),
-	-- 	am.scale(0.05) ^ import("Modules.NoteLoader").getNote('red0'),
-	-- }
-	local arrowSprites = { am.sprite([[
-	.MM
-	MMM
-	.MM]]), am.sprite([[
-	BBB
-	BBB
-	.B.]]), am.sprite([[
-	.G.
-	GGG
-	GGG]]), am.sprite([[
-	RR.
-	RRR
-	RR.]]),
+	local arrowSprites = {
+		am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('purple0'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('blue0'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('green0'),
+		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('red0'),
 	}
+	for i,v in pairs(arrowSprites) do 
+		arrowSprites[i] = am.group{v,am.sprite("WW\nWW",nil,'center','center')}
+	end
+	-- local arrowSprites = { am.sprite([[
+	-- .MM
+	-- MMM
+	-- .MM]]), am.sprite([[
+	-- BBB
+	-- BBB
+	-- .B.]]), am.sprite([[
+	-- .G.
+	-- GGG
+	-- GGG]]), am.sprite([[
+	-- RR.
+	-- RRR
+	-- RR.]]),
+	-- }
 
 	local lerp = function(a, b, t)
 		return a + (b - a) * t
@@ -241,7 +245,31 @@ this = function(...)
 			#notes+#queuedNotes,noteExists
 		)
 	end
+	local function debugHandle()
+		if(not ISDEBUG) then return end
+		local isShift =win:key_down('lshift')
+		local DOWN = win:key_down("s")
+		local UP = win:key_down("w")
+		if(songMeta.speed < 0) then
+			local _DOWN = DOWN
+			DOWN=UP
+			UP=_DOWN
+		end
+		if(DOWN) then
+			time = time + (isShift and 500 or 50)
+			if(voices) then voices:reset(time*0.001) end 
+			inst:reset(time*0.001)
+			updateNoteVisuals()
+		end
+		if(UP) then
+			time = time - (isShift and 500 or 50)
+			if(voices) then voices:reset(time*0.001) end 
+			inst:reset(time*0.001)
+			updateNoteVisuals()
+		end
+	end
 	tracker:action(function(scene)
+		debugHandle()
 		if paused then 
 			if(voices) then voices:reset(time*0.001) end 
 			inst:reset(time*0.001)
@@ -357,6 +385,7 @@ this = function(...)
 
 	}
 	scene:child(1):append(startTracker:action(function()
+-- debugHandle()
 		if paused then 
 			if(win:key_pressed("enter")) then -- TODO ADD COUNTDOWN
 				paused = false

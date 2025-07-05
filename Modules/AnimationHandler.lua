@@ -76,7 +76,28 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		spec.y2 = bottom
 		width=w
 		height=h
-		ret.position2d = vec2(left*0.5,top*0.5)
+		-- ret.position2d = vec2(-left,-top)
+		local offX,offY = 0,0
+		local posOffX,posOffY = -left,-top
+		if(ret.valign) then
+			if(ret.valign == "center") then
+				offY=-(frame.h*0.5)
+			elseif(ret.valign == "top") then
+				offY=-frame.h
+			else
+				error(tostring(ret.valign) .. ' is not a valid valign')
+			end
+		end
+		if(ret.halign and ret.halign ~= "left") then
+			if(ret.halign == "center") then
+				offX=-(frame.w*0.5)
+			elseif(ret.halign == "right") then
+				offX=-frame.w
+			else
+				error(tostring(ret.halign) .. ' is not a valid halign')
+			end
+		end
+		ret.position2d = vec2(posOffX+offX,posOffY+offY)
 		-- spec.x1 = frame.w*-0.5
 		-- spec.x2 = frame.w*0.5
 		-- spec.y1 = frame.y*-0.5
