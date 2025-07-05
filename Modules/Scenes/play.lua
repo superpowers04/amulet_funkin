@@ -70,22 +70,35 @@ this = function(...)
 		voices = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Voices.ogg"),false,1,options.voicesVol)
 	end)
 
-
+	local NoteLoader = import("Modules.NoteLoader")
 	local noteSprites = { 
-		am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('arrowLEFT'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('arrowDOWN'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('arrowUP'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('arrowRIGHT'),
+		NoteLoader.getNote('left'):strum(),
+		NoteLoader.getNote('down'):strum(),
+		NoteLoader.getNote('up'):strum(),
+		NoteLoader.getNote('right'):strum(),
 	}
+
+
 	local arrowSprites = {
-		am.scale(0.05) ^ (import("Modules.NoteLoader")).getNote('purple'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('blue'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('green'),
-		am.scale(0.05) ^ import("Modules.NoteLoader").getNote('red'),
+		NoteLoader.getNote('left'):scroll(),
+		NoteLoader.getNote('down'):scroll(),
+		NoteLoader.getNote('up'):scroll(),
+		NoteLoader.getNote('right'):scroll(),
 	}
-	-- for i,v in pairs(arrowSprites) do 
-	-- 	arrowSprites[i] = am.group{v,am.sprite("WW\nWW",nil,'center','center')}
-	-- end
+	do
+
+		local scale = 0.05
+		for i,v in pairs(arrowSprites) do 
+			v.scale.x = scale
+			v.scale.y = scale
+			-- v.scale.z = scale
+		end
+		for i,v in pairs(noteSprites) do 
+			v.scale.x = scale
+			v.scale.y = scale
+			-- v.scale.z = scale
+		end
+	end
 	-- local arrowSprites = { am.sprite([[
 	-- .MM
 	-- MMM
@@ -144,8 +157,8 @@ this = function(...)
 
 	txt = am.text('',nil,"LEFT","TOP");
 	scene = am.translate(-200,0) ^ am.translate(0,200*options.scrollDir) ^ am.group{
-		strumGroup,
 		noteGroup,
+		strumGroup,
 	}
 
 	local tracker = am.translate(-180,-120*options.scrollDir) ^ txt
@@ -163,14 +176,14 @@ this = function(...)
 		combo = 0
 		scene:action("MISS",am.play(missSound,false,0.75 + ((id/4)*0.5)),options.missVol)
 		-- strumGroup:child(id).y = 0.8
-		strumGroup:child(id).y = 1.05
+		-- noteSprites[id]:press()
 		if(voices) then voices.volume = 0 end
 	end
 	local function ghost(id)
 		ghosttaps = ghosttaps + 1
 		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),options.ghostVol)
 		-- strumGroup:child(id).y = 0.8
-		strumGroup:child(id).y = 1.1
+		noteSprites[id]:press()
 	end
 	local function noteHit(id,diff)
 		notesEncountered=notesEncountered+1
@@ -179,11 +192,9 @@ this = function(...)
 		notesHitAccuracy = notesHitAccuracy+close
 		notesHit = notesHit + 1
 		-- strumGroup:child(id).y = 1 + (close*0.3)
-		strumGroup:child(id).y = 1 - (close*0.1)
-		if(voices) then voices.volume = options.voicesVol end
-	end
-	local function generateHoldNote(note)
+		noteSprites[id]:hit()
 
+		if(voices) then voices.volume = options.voicesVol end
 	end
 	local function updateNoteVisuals()
 		local speed = songMeta.speed
@@ -303,7 +314,10 @@ this = function(...)
 			local isDown = win:key_down(v) or pressed
 			just[i] = pressed
 			down[i] = isDown
-			noteSprites[i].color = isDown and heldColor or unheldColor
+			if(not isDown) then
+
+				noteSprites[i]:strum_stopped()
+			end
 		end
 		local i = 0
 		local pressed = {}
@@ -330,6 +344,7 @@ this = function(...)
 					noteHit(data,diffFloat)
 				else
 					pressed[data] = time
+					noteSprites[data]:hit()
 					if(voices) then voices.volume = options.voicesVol end
 				end
 			elseif(pressed[data] and (math.abs(noteTime-pressed[data]) < 7)) then

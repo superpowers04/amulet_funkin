@@ -6,10 +6,10 @@ return {
         "k",
     },
     ghostVol = 0.6,
-    instVol = 1,
+    instVol = 0.7,
     missVol = 0.6,
     scale = 12,
     scrollDir = 1,
     side = 2,
-    voicesVol = 1,
+    voicesVol = 0.8,
 }

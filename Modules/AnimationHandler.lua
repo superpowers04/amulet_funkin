@@ -40,30 +40,69 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		height=texture.height,
 	}
 	local node = am.sprite(spec,color, 'left','bottom')
-	local ret = am.translate(0,0) ^ node
+	local translate = am.translate(0,0) ^ node
+	local scale = am.scale(1) ^ translate
+	local self = am.wrap(scale)
+	self.texture = texture
+	self.scale=scale
+	self.translate=translate
+	self.sprite=node
 	 -- if true then return node end
-	node.animations = animations
 	-- node.frames = animations[anim]
-	ret.halign = halign
-	ret.valign = valign
-	node.origSpec = spec
-	node.time = 0
-	node.frameTime = (fps/60)*1000
-	node.playing = true
-	function node:playAnim(name,time)
-		local frames= animations[name]
+	self.animations = animations
+	self.halign = halign
+	self.valign = valign
+	self.origSpec = spec
+	self.time = 0
+	self.frameTime = (1/(fps or 24))
+	self.playing = true
+	function self:playAnimIfStopped(name,...)
+		return not self.playing and self:playAnim(name,...)
+	end
+	function self:playAnimIfDifferent(name,names,restart,...)
+		local curAnim = self.animName
+		if(names) then
+			for i,v in pairs(names) do
+				if(v == name) then return false end
+			end
+		end
+		if(curAnim == name) then
+			if(restart and not self.playing) then
+				self.time = 0
+				self.playing = true
+				return true
+			end
+			return false
+		end
+		return self:playAnim(name,...)
+	end
+	function self:playAnim(name,time,loop,restart)
+		local frames= self.animations[name]
+		if frames == self.frames then
+			self.playing = true
+			self.looping = loop
+			self.time = 0
+			return
+		end
 
-		if not frames and name then 
-			local name = name:lower()
-			for i,v in pairs(animations) do
-				if(i:lower():match(name)) then
-					frames = v
-					break
+		if not frames then 
+			if(name) then
+				local name = name:lower()
+				for i,v in pairs(animations) do
+					if(i:lower():match(name)) then
+						self.animName = i
+						frames = v
+						break
+					end
 				end
 			end
+		else
+			self.animName = name
+
 		end
 		if not frames then 
 			self.playing = false
+			if name == nil then error('NAME IS NIL') end
 			print('Invalid animation:' .. tostring(name))
 			return false
 		end
@@ -71,12 +110,15 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		self.time = time or 0
 		if(#self.frames == 1) then
 			self:showFrame(self.frames[1])
+			self.looping = false
 			self.playing = false
 		end
+		self.playing = true
+		self.looping = loop
 		return true
 	end
-	function node:showFrame(frame)
-		local w,h = texture.width, texture.height
+	function self:showFrame(frame)
+		local w,h = self.texture.width, self.texture.height
 		local spec = self.origSpec
 		local top,left = frame.y, frame.x
 		local bottom, right = top+frame.h, left+frame.w
@@ -95,58 +137,55 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 
 		local offX,offY = 0,0
 		local posOffX,posOffY = -left,-top
-		if(ret.valign) then
-			if(ret.valign == "center") then
+		if(self.valign) then
+			if(self.valign == "center") then
 				offY=-(frame.h*0.5)
-			elseif(ret.valign == "top") then
+			elseif(self.valign == "top") then
 				offY=-frame.h
 			else
-				error(tostring(ret.valign) .. ' is not a valid valign')
+				error(tostring(self.valign) .. ' is not a valid valign')
 			end
 		end
-		if(ret.halign and ret.halign ~= "left") then
-			if(ret.halign == "center") then
+		if(self.halign and self.halign ~= "left") then
+			if(self.halign == "center") then
 				offX=-(frame.w*0.5)
-			elseif(ret.halign == "right") then
+			elseif(self.halign == "right") then
 				offX=-frame.w
 			else
-				error(tostring(ret.halign) .. ' is not a valid halign')
+				error(tostring(self.halign) .. ' is not a valid halign')
 			end
 		end
-		ret.position2d = vec2(posOffX+offX,posOffY+offY)
-
-		self.source = spec
+		self.translate.position2d = vec2(posOffX+offX,posOffY+offY)
+		self.sprite.source = spec
 	end
-	if not node:playAnim(anim) and animations then
+	if (not anim or not self:playAnim(anim,0,loop)) and animations then
 		for i,v in pairs(animations) do
-			node:showFrame(v[1])
+			self:showFrame(v[1])
 		end
 	end
 
-	function node:on_update()
+	function self:on_update()
 		if(not self.playing) then return end
 		local lasttime = self.time
 		self.time = self.time + am.delta_time
 		local time = (self.time/self.frameTime)
-		if not looping and (time > #self.frames) then
+		if not self.looping and (time > #self.frames) then
 			self.playing = false; 
-			self.time = #node.frames
+			self.time = #self.frames
 			return
 		end
 		self:showFrame(self.frames[math.floor(time%#self.frames)+1])
 	end
-	function ret:playAnim(...) return node:playAnim(...) end
-	function ret:showFrame(...) return node:playAnim(...) end
-	node:action(node.on_update)
-	return ret
+	self:action(self.on_update)
+	return self
 end
 mod.cache = {}
 
-function mod.fromSparrowAtlas(png,xml,defaultAnim,fps,ignoreCache)
+function mod.fromSparrowAtlas(png,xml,defaultAnim,fps,loop,ignoreCache)
 	local newF = mod.frame
 	local frames
 	if not ignoreCache and mod.cache[xml] then
-		frames = mod.cache[xml]
+		frames = table.shallow_copy(mod.cache[xml])
 	else
 		local xml = am.load_string(xml)
 		frames = { }
@@ -157,10 +196,10 @@ function mod.fromSparrowAtlas(png,xml,defaultAnim,fps,ignoreCache)
 			frames[tex][tonumber(frame)+1] = f
 		end
 		-- for i,v in pairs(frames) do print(i,#v) end
-		if(not ignoreCache) then mod.cache[xml]=frames end
+		if(not ignoreCache) then mod.cache[xml]=table.shallow_copy(frames) end
 	end
 	-- table.sort(frames, function(a,b) return a.name > b.name end)
-	local spr = mod.sprite_anims(png,frames,defaultAnim,fps or 24,true,nil,'center','center')
+	local spr = mod.sprite_anims(png,frames,defaultAnim,fps or 24,loop,nil,'center','center')
 	return spr
 end
 
