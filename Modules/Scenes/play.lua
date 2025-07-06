@@ -1,7 +1,23 @@
 local this
-local import = require('Modules.Import')
-local ISDEBUG = true
 this = function(...)
+	local import = require('Modules.Import')
+	local Events = import'Modules.EventHandler'
+	local PlatformUtils = import'Modules.PlatformUtils'
+	local NoteLoader = import("Modules.NoteLoader")
+	local AnimationHandler = import'Modules.AnimationHandler'
+	-- local ISDEBUG = true
+	local SCRIPTENV = setmetatable({
+		Events=Events,
+		PlatformUtils=PlatformUtils,
+		NoteLoader=NoteLoader,
+		AnimationHandler=AnimationHandler,
+		-- Game=getfenv()
+	},{__index=getfenv()})
+	Events:clear()
+
+
+
+
 	local arguments = {...}
 	local chart,instDir = ...
 	-- TODO - Unhardcode chart loading
@@ -10,32 +26,52 @@ this = function(...)
 	options=import('SETTINGS')
 	local buttons = options.buttons
 
-
 	local PWD = os.getenv('PWD')
 	if(chart:sub(0,#PWD) == PWD) then
 		chart = chart:sub(#PWD)
 	end
 
 	local songMeta = {
-		songNotes = {
-			
-		},
+		songNotes = {},
 		speed = options.scrollDir,
 	}
 
 
 	if not chart then 
 		print('no bitches')
-		return require('results')('No chart!\nPress Enter, Space, Escape or Backspace to return to list',function()win.scene = require('list') end,function()win.scene = require('list') end)
+		return import('results',{'No chart!\nPress Enter, Space, Escape or Backspace to return to list',function()win.scene = require('list') end,function()win.scene = require('list') end})
+	end
+	Events:newEvent('update')
+	Events:newEvent('noteHit') -- id, diff
+	Events:newEvent('noteMiss') -- id
+	Events:newEvent('noteGhost') -- id
+	Events:newEvent('noteHold') -- 
+	Events:newEvent('noteGen') -- noteobj
+	Events:newEvent('noteParse') -- Noteobj
+	Events:newEvent('songParse')
+
+	for i,v in pairs(PlatformUtils.getDirectory('mods/scripts')) do
+		if(v:find('/play.lua') or v:find('mods/scripts/[^/]*%.lua$')) then
+			local chunk,err = loadfile(v)
+			if not chunk then
+				return SceneHandler:set_scene('results',{('Error while parsing %s: %s'):format(v,err or "")})
+			end
+			local chunk = setfenv(chunk,setmetatable({},{__index=SCRIPTENV}))
+			local succ,err = pcall(chunk)
+			if not succ then
+				return SceneHandler:set_scene('results',{('Error while executing %s: %s'):format(v,err or "")})
+			end
+		end
 	end
 	local scene = am.group()
 	scene.arguments = arguments
-	scene.ENV = _ENV
+	scene.ENV = _ENV or getfenv()
 	local songNotes = songMeta.songNotes
 	local both_sides = options.side == 2
 	local side = options.side == 1
 	do -- SONG PARSING
 		local str = am.parse_json(am.load_string(chart))
+		Events:call('songParse',str)
 		songMeta.bpm = math.abs(str.song.bpm)
 		local bpm = math.abs(songMeta.bpm)
 		local crochet = ((60 / bpm) * 1000)
@@ -52,6 +88,10 @@ this = function(...)
 					if(note[2] < 5) then
 						songNotes[#songNotes+1] = note
 					end
+					Events:call('noteParse',note)
+				else
+					Events:call('noteSkipParse',note)
+
 				end
 			end
 		end
@@ -65,8 +105,6 @@ this = function(...)
 	pcall(function()
 		voices = am.track(am.load_audio((instDir or chart:gsub('[^/]+$','')).."/Voices.ogg"),false,1,options.voicesVol)
 	end)
-
-	local NoteLoader = import("Modules.NoteLoader")
 	local noteSprites = { 
 		NoteLoader.getNote('left'):strum(),
 		NoteLoader.getNote('down'):strum(),
@@ -82,7 +120,6 @@ this = function(...)
 		NoteLoader.getNote('right'):scroll(),
 	}
 	do
-
 		local scale = 0.05
 		for i,v in pairs(arrowSprites) do 
 			v.scale.x = scale
@@ -174,12 +211,14 @@ this = function(...)
 		-- strumGroup:child(id).y = 0.8
 		-- noteSprites[id]:press()
 		if(voices) then voices.volume = 0 end
+		Events:call('noteMiss',id)
 	end
 	local function ghost(id)
 		ghosttaps = ghosttaps + 1
 		scene:action("Ghost",am.play(ghostSound,false,0.75 + ((id/4)*0.2)),options.ghostVol)
 		-- strumGroup:child(id).y = 0.8
 		noteSprites[id]:press()
+		Events:call('noteGhost',id,diff)
 	end
 	local function noteHit(id,diff)
 		notesEncountered=notesEncountered+1
@@ -189,6 +228,7 @@ this = function(...)
 		notesHit = notesHit + 1
 		-- strumGroup:child(id).y = 1 + (close*0.3)
 		noteSprites[id]:hit()
+		Events:call('noteHit',id,diff)
 
 		if(voices) then voices.volume = options.voicesVol end
 	end
@@ -270,6 +310,7 @@ this = function(...)
 	end
 	tracker:action(function(scene)
 		debugHandle()
+		Events:call('update',am.delta_time)
 		if paused then 
 			if(voices) then voices:reset(time*0.001) end 
 			inst:reset(time*0.001)

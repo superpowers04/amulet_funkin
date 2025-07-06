@@ -6,9 +6,9 @@ local function execute(str)
 	return content
 end
 
-function mod.getDirectory(path)
+function mod.getDirectory(path,switches) -- TODO WINDOWS COMPATIBILITY
 	local ret = {}
-	for v in execute(('find %q'):format(path)):gmatch('[^\n]+') do
+	for v in execute(('find %q %s'):format(path,switches or "")):gmatch('[^\n]+') do
 		ret[#ret+1] = v
 	end
 	return ret

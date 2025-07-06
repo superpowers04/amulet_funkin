@@ -24,7 +24,14 @@ local songs = {}
 do
 	local jsons = {}
 	local insts = {}
-	for _,line in pairs(PlatformUtils.getDirectory('mods/')) do
+	for _,line in pairs(PlatformUtils.getDirectory('mods/charts/')) do
+		if(line:find('%.json$')) then
+			jsons[line] = true
+		elseif line:find('Inst.ogg$') then
+			insts[line:sub(0,-9)] = true
+		end
+	end
+	for _,line in pairs(PlatformUtils.getDirectory('fnfmods/')) do
 		if(line:find('%.json$')) then
 			jsons[line] = true
 		elseif line:find('Inst.ogg$') then
@@ -58,7 +65,7 @@ end
 if(#songs == 0) then return am.scale(2) ^ am.text('NO CHARTS!') end
 for index,song in pairs(songs) do
 	local song = song[1]
-	songList:append(am.translate(0,index*15) ^ am.text(song:gsub('/data/',' > '):gsub('^mods/',''):gsub('/charts/',' > '),nil,"left",'top'))
+	songList:append(am.translate(0,index*15) ^ am.text(song:gsub('/data/',' > '):gsub('^fnfmods/','fnf > '):gsub('^mods/',' '):gsub('/charts/',' > '),nil,"left",'top'))
 end
 local hover,normal = vec4(1,1,1,1),vec4(0.6,0.6,0.6,1)
 

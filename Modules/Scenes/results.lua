@@ -1,5 +1,13 @@
 return function(stuff,on_enter,on_back)
 	local scene = am.group()
+	stuff = stuff or "N/A"
+	if not on_enter then
+		on_enter = function() SceneHandler:reload_scene() end
+		stuff = stuff .. "\n\nPress Enter, or Space to restart\nPress Escape or Backspace to return to list"
+	end
+	if not on_back then
+		on_back = function() SceneHandler:set_scene('list') end
+	end
 	local TEXT = am.text(stuff,nil,"center","center")
 	scene:append(TEXT)
 	scene:action(function()
