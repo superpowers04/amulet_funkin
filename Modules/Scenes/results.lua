@@ -1,6 +1,7 @@
 return function(stuff,on_enter,on_back)
 	local scene = am.group()
 	stuff = stuff or "N/A"
+	print(stuff)
 	if not on_enter then
 		on_enter = function() SceneHandler:reload_scene() end
 		stuff = stuff .. "\n\nPress Enter, or Space to restart\nPress Escape or Backspace to return to list"

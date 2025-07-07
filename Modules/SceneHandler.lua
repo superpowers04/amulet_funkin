@@ -12,43 +12,62 @@ local import = require('Modules.Import')
 
 
 function SceneHandler:load_scene(s,args)
-	local ls = SceneHandler.current_scene
-	local la = SceneHandler.current_args
-	self:set_scene(am.text('LOADING'):action(function() 
-		SceneHandler.current_scene = ls
-		SceneHandler.current_args = la
-		self:set_scene(s,args)
-	end))
+	self:set_scene(self:get_loading_scene(s,args))
 end
+function SceneHandler:get_loading_scene(s,args)
+	local ls = self.current_scene
+	local la = self.current_args
+	local LOADING = am.text('LOADING')
+	return LOADING:action(function() 
+		if self.current_scene == LOADING then
+			self.current_scene = ls
+			self.current_args = la
+			self:set_scene(s,args)
+		end
+	end)
+end
+
 function SceneHandler:back_a_scene()
 	SceneHandler:load_scene(SceneHandler.last_scene,SceneHandler.last_args)
 
 end
-function SceneHandler:reload_scene(s,args)
+function SceneHandler:reload_scene()
 	SceneHandler:load_scene(SceneHandler.current_scene,SceneHandler.current_args)
 end
 function SceneHandler:set_scene(s,args)
-	SceneHandler.last_scene = SceneHandler.current_scene
-	SceneHandler.last_args = SceneHandler.current_args
+	self.last_scene = SceneHandler.current_scene
+	self.last_args = SceneHandler.current_args
 	if(s == SceneHandler) then s = args;args=nil end
-	SceneHandler.current_scene = s
-	SceneHandler.current_args = args
-	if(type(s) == "string") then
-		s = import('Modules.Scenes.'..s)
+	self.current_scene = s
+	self.current_args = args
+	local _s = s
+	local succ,err = pcall(function()
+		if(type(s) == "string") then
+			s = import('Modules.Scenes.'..s)
+		end
+		if(args) then
+			s = s((table.unpack or unpack)(args))
+		end
+	end)
+	if not succ then
+		error('Error while trying to switch scenes:\n'..tostring(err))
 	end
-	if(args) then
-		s = s((table.unpack or unpack)(args))
-	end
-	local child = SceneHandler:child(1)
+
+	if(self.current_scene ~= _s) then 
+		print('SCENE CHANGED WHILE TRYING TO CHANGE SCENE, ABORTING SCENE CHANGE!')
+		return self.current_scene
+	end -- Scene must've changed while trying to execute the above ABORT ABORT
+
+	local child = self:child(1)
 	if not child then
-		SceneHandler:append(s)
+		self:append(s)
 		return
 	end
-	SceneHandler:replace(child,s)
+	self:replace(child,s)
 	return s
 end
 function SceneHandler:get_scene(s)
-	return SceneHandler.current_scene
+	return self.current_scene
 end
 
 

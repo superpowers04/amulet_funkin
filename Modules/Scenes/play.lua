@@ -1,17 +1,32 @@
 local this
+local Game = {}
 this = function(...)
+
 	local import = require('Modules.Import')
 	local Events = import'Modules.EventHandler'
 	local PlatformUtils = import'Modules.PlatformUtils'
 	local NoteLoader = import("Modules.NoteLoader")
 	local AnimationHandler = import'Modules.AnimationHandler'
 	-- local ISDEBUG = true
+	local shared = {}
+	local scene = am.group()
+	options=import('SETTINGS')
+	local songMeta = {
+		songNotes = {},
+		speed = options.scrollDir,
+	}
+
 	local SCRIPTENV = setmetatable({
 		Events=Events,
 		PlatformUtils=PlatformUtils,
 		NoteLoader=NoteLoader,
 		AnimationHandler=AnimationHandler,
-		-- Game=getfenv()
+		Options = setmetatable({},{__index=options}),
+		Shared = shared,
+		GameGroup=am.group(),
+		Scene=scene,
+		SongMeta=songMeta,
+		Game=Game,
 	},{__index=getfenv()})
 	Events:clear()
 
@@ -23,7 +38,6 @@ this = function(...)
 	-- TODO - Unhardcode chart loading
 
 
-	options=import('SETTINGS')
 	local buttons = options.buttons
 
 	local PWD = os.getenv('PWD')
@@ -31,39 +45,32 @@ this = function(...)
 		chart = chart:sub(#PWD)
 	end
 
-	local songMeta = {
-		songNotes = {},
-		speed = options.scrollDir,
-	}
 
 
 	if not chart then 
 		print('no bitches')
 		return import('results',{'No chart!\nPress Enter, Space, Escape or Backspace to return to list',function()win.scene = require('list') end,function()win.scene = require('list') end})
 	end
+	Events:newEvent('songStart')
 	Events:newEvent('update')
+	Events:newEvent('updateTime') -- time, delta
 	Events:newEvent('noteHit') -- id, diff
 	Events:newEvent('noteMiss') -- id
 	Events:newEvent('noteGhost') -- id
 	Events:newEvent('noteHold') -- 
 	Events:newEvent('noteGen') -- noteobj
 	Events:newEvent('noteParse') -- Noteobj
+	Events:newEvent('noteParseAfter') -- Noteobj
+	Events:newEvent('noteSkipParse') -- Noteobj
 	Events:newEvent('songParse')
-
-	for i,v in pairs(PlatformUtils.getDirectory('mods/scripts')) do
-		if(v:find('/play.lua') or v:find('mods/scripts/[^/]*%.lua$')) then
-			local chunk,err = loadfile(v)
-			if not chunk then
-				return SceneHandler:set_scene('results',{('Error while parsing %s: %s'):format(v,err or "")})
-			end
-			local chunk = setfenv(chunk,setmetatable({},{__index=SCRIPTENV}))
-			local succ,err = pcall(chunk)
-			if not succ then
-				return SceneHandler:set_scene('results',{('Error while executing %s: %s'):format(v,err or "")})
-			end
+	
+	do
+		local succ,err = import'Modules.ModUtils'.initScripts('play',SCRIPTENV)
+		if not succ then 
+			return import'Modules.Scenes.results'(err)
 		end
 	end
-	local scene = am.group()
+
 	scene.arguments = arguments
 	scene.ENV = _ENV or getfenv()
 	local songNotes = songMeta.songNotes
@@ -84,14 +91,14 @@ this = function(...)
 			end
 			for nid,note in ipairs(SECTION.sectionNotes) do
 				if(both_sides or side == SECTION.mustHitSection == (note[2]>4)) then
+					Events:call('noteParse',note)
 					note[2]=(note[2]%4)+1
 					if(note[2] < 5) then
 						songNotes[#songNotes+1] = note
 					end
-					Events:call('noteParse',note)
+					Events:call('noteParseAfter',note)
 				else
 					Events:call('noteSkipParse',note)
-
 				end
 			end
 		end
@@ -190,6 +197,7 @@ this = function(...)
 
 	txt = am.text('',nil,"LEFT","TOP");
 	scene = am.translate(-200,0) ^ am.translate(0,200*(options.scrollDir > 0 and 1 or -1)) ^ am.group{
+		SCRIPTENV.GameGroup,
 		noteGroup,
 		strumGroup,
 	}
@@ -340,6 +348,7 @@ this = function(...)
 			return
 		end
 		time = time+(am.delta_time*1000)
+		Events:call('updateTime',time,am.delta_time)
 		if(time > songLength) then
 			on_finish()
 			return
@@ -372,6 +381,7 @@ this = function(...)
 				note.vt = time
 				down[data] = false
 				note.p = true
+				Events:call('noteHold',data)
 				if(note.endTime - time <= 0) then
 					noteGroup:remove(note.s)
 					table.remove(notes,i)
@@ -459,10 +469,11 @@ this = function(...)
 		updateNoteVisuals()
 		if(time > 0) then
 			time = 0
-			scene:child(1):remove(startTracker)
-			scene:child(1):prepend(tracker)
+			Events:call('songStart')
+			scene:child(1):replace(startTracker,tracker)
 		end
 	end))
+	SCRIPTENV.Game = getfenv()
 	return scene
 end
 return this

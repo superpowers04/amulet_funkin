@@ -56,5 +56,23 @@ function mod.getNote(type,anim)
 	end
 	return e
 end
+local noteIndexes={
+	time=1,
+	data=2,
+	sustain=3,
+	type=4
+}
+mod.note_mt={
+	noteIndexes=noteIndexes,
+	__index = function(s,k)
+		return rawget(s,k) or rawget(a,noteIndexes[k])
+	end,
+	__newindex = function(s,k,v)
+		rawset(s,noteIndexes[k] or k,v)
+	end
+}
+function mod.newNote(t)
+	return setmetatable(t,mod.note_mt)
+end
 
 return mod
