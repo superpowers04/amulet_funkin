@@ -3,7 +3,7 @@ return function(stuff,on_enter,on_back)
 	stuff = stuff or "N/A"
 	print(stuff)
 	if not on_enter then
-		on_enter = function() SceneHandler:reload_scene() end
+		on_enter = function() SceneHandler:go_back_a_scene() end
 		stuff = stuff .. "\n\nPress Enter, or Space to restart\nPress Escape or Backspace to return to list"
 	end
 	if not on_back then

@@ -14,12 +14,12 @@ function mod.initScripts(state, env) -- TODO ADD SANDBOXING
 		local chunk,err = loadfile(v)
 		if not chunk then
 			
-			return false,('Error while parsing %s: %s'):format(v,err or "")
+			return false,('Error while parsing %s:\n %s'):format(v,err or "")
 		end
 		local chunk = setfenv(chunk,setmetatable({state=state,script=v,path=v:match('.+/')},{__index=env}))
 		local succ,err = pcall(chunk)
 		if not succ then
-			return false,('Error while executing %s: %s'):format(v,err or "")
+			return false,('Error while executing %s:\n %s'):format(v,err or "")
 		end
 		
 	end

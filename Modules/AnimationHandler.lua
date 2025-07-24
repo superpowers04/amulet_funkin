@@ -117,7 +117,7 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		self.looping = loop
 		return true
 	end
-	function self:showFrame(frame)
+	function self:showFrame(frame,animation)
 		local w,h = self.texture.width, self.texture.height
 		local spec = self.origSpec
 		local top,left = frame.y, frame.x
@@ -135,24 +135,34 @@ function mod.sprite_anims(texture,animations,anim,fps,loop,color, halign, valign
 		width=w
 		height=h
 
-		local offX,offY = 0,0
+		local offX,offY = frame.ox,frame.oy
 		local posOffX,posOffY = -left,-top
 		if(self.valign) then
 			if(self.valign == "center") then
-				offY=-(frame.h*0.5)
+				offY=offY-(frame.h*0.5)
 			elseif(self.valign == "top") then
-				offY=-frame.h
+				offY=offY-frame.h
+			elseif(self.valign == "bottom") then
+				-- offY=offY
 			else
 				error(tostring(self.valign) .. ' is not a valid valign')
 			end
 		end
 		if(self.halign and self.halign ~= "left") then
 			if(self.halign == "center") then
-				offX=-(frame.w*0.5)
+				offX=offX-(frame.w*0.5)
 			elseif(self.halign == "right") then
-				offX=-frame.w
+				offX=offX-frame.w
 			else
 				error(tostring(self.halign) .. ' is not a valid halign')
+			end
+		end
+		if(animation) then
+			if(animation.offsetx) then
+				offX=offX+animation.offsetx
+			end
+			if(animation.offsety) then
+				offY=offY+animation.offsety
 			end
 		end
 		self.translate.position2d = vec2(posOffX+offX,posOffY+offY)
@@ -191,8 +201,22 @@ function mod.fromSparrowAtlas(png,xml,defaultAnim,fps,loop,ignoreCache)
 	else
 		local xml = am.load_string(xml)
 		frames = { }
-		for tex,frame,x,y,w,h in xml:lower():gmatch('subtexture name="([^"]-)(%d+)" x="(%d+)" y="(%d+)" width="(%d+)" height="(%d+)"') do
-			local f = newF(tonumber(x),tonumber(y),tonumber(w),tonumber(h))
+		for subtex in xml:gmatch('<SubTexture .-/>') do
+			local FRAME = {}
+			for i,v in subtex:gmatch(' (.-)="(.-)"') do
+				FRAME[i] = v
+			end
+			local tex,frame = FRAME.name:match('^(.-)(%d+)$')
+			frame = tonumber(frame)
+			local f = newF(
+				tonumber(FRAME.x),tonumber(FRAME.y),
+				tonumber(FRAME.width),tonumber(FRAME.height)
+				-- ,tonumber(FRAME.framex),
+				-- -(tonumber(FRAME.framey) or 0)
+				)
+			-- if(FRAME.frameheight) then
+			-- 	f.oy = f.oy-(FRAME.frameheight-FRAME.height)
+			-- end
 			f.name = tex
 			if(not frames[tex]) then frames[tex] = {} end
 			frames[tex][tonumber(frame)+1] = f
