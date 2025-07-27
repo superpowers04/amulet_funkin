@@ -13,6 +13,8 @@ local songList = am.group{}
 local text_insert = TextInsert.new()
 -- local animHandler = require('Modules.AnimationHandler')
 local group = am.group{
+	am.translate(-250,250) ^ text_insert,
+	songList,
 	am.translate(-100,300)^am.text('Press O to open options. S to search'):action(function()
 		if(text_insert.active) then return end
 		if(win:key_down('o')) then
@@ -21,8 +23,6 @@ local group = am.group{
 			text_insert:activate()
 		end
 	end),
-	am.translate(-250,250) ^ text_insert,
-	songList,
 	-- animHandler.sprite_anims('assets/NOTE_assets.png',{scroll=animHandler.frame(1850,154,157,154)},"scroll",24,true)
 }
 
@@ -120,20 +120,23 @@ end)
 text_insert.onEnter = function(_,buffer)
 	search = buffer
 	reloadSongs()
-	local node = am.group{}
-	group:append(node)
-	node:action(function()
-		text_insert.deactivate()
-		group:remove(node)
-	end)
+	-- local node = am.group{}
+	-- group:append(node)
+	-- node:action(function()
+	-- 	text_insert:deactivate()
+	-- 	group:remove(node)
+	-- end)
 end
-function text_insert.onDeactivate()
-	text_insert.color = normal
+function text_insert:onDeactivate()
+	self:child(1).color = normal
+	self:child(2).color = normal
 end
-function text_insert.onActivate()
-	text_insert.color = hover
+function text_insert:onActivate()
+	self:child(1).color = hover
+	self:child(2).color = hover
 	pcall(function()
 		songList:child(scroll):child(1).color = normal
 	end)
 end
+text_insert:onDeactivate()
 return am.translate(-310,0) ^ group

@@ -1,33 +1,30 @@
 local mod = {}
 
 
-function mod.new()
+function mod.new(placeholder_text)
+	local buffer = ""
+	local caret = 0
+	local caretCharacter = "|"
+	local output = ""
+
 	local TEXT = am.text('',nil,"LEFT","TOP")
-	local CARETTEXT = am.text('|',nil,"LEFT","TOP")
+	local CARETTEXT = am.text(placeholder_text or caretCharacter,nil,"LEFT","TOP")
 	local scale = 1
 
-	ret =am.group{CARETTEXT,TEXT}
+	local self = am.group{CARETTEXT,TEXT}
 
-	local buffer = ""
-	local caret = 1
-	local caretCharacter = "_"
-	local output = ""
-	function ret:onEnter(buffer)
+	-- Callbacks
+	function self:onEnter(buffer)
 		-- do thing
 	end
-	function ret:onActivate(buffer)
+	function self:onActivate(buffer)
 		-- do thing
 	end
-	function ret:onDeactivate(buffer)
+	function self:onDeactivate(buffer)
 		-- do thing
 	end
-	function print(...)
-		output = output .. "\n"
-		local tbl = {...}
-		for i,v in pairs(tbl) do tbl[i]=tostring(v) end
-		output = output..table.concat(tbl,'\t')
-	end
-	local function moveCaret(c,isCtrl)
+
+	function self:moveCaret(c,isCtrl)
 		if isCtrl then
 			if(c > caret) then
 				c = buffer:find('%s.-$',0,caret) or #buffer
@@ -39,17 +36,17 @@ function mod.new()
 		end
 		caret = math.max(math.min(c,#buffer),0)
 	end
-	local function insertCharacter(c,position,incrementCaret)
+	function self:insertCharacter(c,position,incrementCaret)
 		if not position then position = caret end
 		buffer = buffer:sub(0,position).. c ..buffer:sub(position+1)
 		position = position + #c
-		if incrementCaret then moveCaret(position) end
+		if incrementCaret then self:moveCaret(position) end
 	end
-	local function removeCharacter(c,incrementCaret)
+	function self:removeCharacter(c,incrementCaret)
 		buffer = buffer:sub(0,c-1)..buffer:sub(c+1)
-		if(incrementCaret and caret >= c) then moveCaret(caret - 1) end
+		if(incrementCaret and caret >= c) then self:moveCaret(caret - 1) end
 	end
-	ret.keyAtlas = { -- uppercase = shift pressed
+	self.keyAtlas = { -- uppercase = shift pressed
 		equals="=",
 		minus="-",
 		EQUALS="+",
@@ -81,7 +78,7 @@ function mod.new()
 		SHIFT9="(",
 		SHIFT0=")",
 	}
-	ret.keybindFunctions = {
+	self.keybindFunctions = {
 		l=function() buffer = "" output = "" caret = 0 end,
 		v=function() -- TODO PASTING IMPLEMENTATION
 			-- local clip = executeCmd('wl-paste')
@@ -90,20 +87,20 @@ function mod.new()
 		delete=function() buffer = "" end
 	}
 	local lastKey = ""
-	function ret:handleKey(v,isShift,isCtrl)
+	function self:handleKey(v,isShift,isCtrl)
 		if(v == "space") then
-			insertCharacter(" ",caret,true)
+			self:insertCharacter(" ",caret,true)
 		elseif(v == "backspace") then
-			removeCharacter(caret,true)
+			self:removeCharacter(caret,true)
 		elseif(v == "escape") then
-			ret:deactivate(buffer)
+			self:deactivate(buffer)
 		elseif(v == "enter") then
-			ret:onEnter(buffer)
-			ret:deactivate(buffer)
+			self:onEnter(buffer)
+			self:deactivate(buffer)
 		elseif(v == "left") then
-			moveCaret(caret-1,isCtrl)
+			self:moveCaret(caret-1,isCtrl)
 		elseif(v == "right") then
-			moveCaret(caret+1,isCtrl)
+			self:moveCaret(caret+1,isCtrl)
 		else
 			local v = v
 			if isShift then 
@@ -113,22 +110,22 @@ function mod.new()
 					v = v:upper()
 				end
 			end
-			v = ret.keyAtlas[v] or v
+			v = self.keyAtlas[v] or v
 			if(isCtrl) then
-				local func = ret.keybindFunctions[v]
+				local func = self.keybindFunctions[v]
 				if(func) then
-					return func()
+					return func(self,buffer)
 				end
 			elseif(#v == 1) then
-				insertCharacter(v,caret,true)
+				self:insertCharacter(v,caret,true)
 				return
 			end
 		end
 	end
 	local timerFromLastPress = 0
 	local allowRepeat = false
-	ret:action(function(e)
-		if not ret.active then return end
+	self:action(function(e)
+		if not self.active then return end
 		local keys_pressed = win:keys_pressed()
 		local keys_down = win:keys_down()
 		if(#keys_down == 0) then return end
@@ -137,7 +134,7 @@ function mod.new()
 		timerFromLastPress = timerFromLastPress + am.delta_time
 		for i,v in ipairs(keys_pressed) do
 			allowRepeat = false
-			ret:handleKey(v,isShift,isCtrl)
+			self:handleKey(v,isShift,isCtrl)
 		end
 		if(not allowRepeat) then 
 			if(timerFromLastPress > 1) then
@@ -146,13 +143,13 @@ function mod.new()
 			end
 		elseif(timerFromLastPress > 0.1) then
 			for i,v in ipairs(keys_down) do
-				ret:handleKey(v)
+				self:handleKey(v)
 			end
 			timerFromLastPress = 0
 		end
-		ret:showText()
+		self:showText()
 	end)
-	function ret:showText()
+	function self:showText()
 		self.buffer = buffer
 		local caret = caret
 		local buffer = buffer
@@ -168,18 +165,19 @@ function mod.new()
 		TEXT.text = buffer
 
 	end
-	function ret:deactivate()
-		self.active = false
+	function self:deactivate()
 		CARETTEXT.text = buffer
 		TEXT.text = ""
 		self:onDeactivate(buffer)
+		self.active = false
 	end
-	function ret:activate()
+	function self:activate()
 		self.active = true
 		self:showText()
 		self:onActivate(buffer)
 	end
-	return ret
+	self:showText()
+	return self
 
 end
 
