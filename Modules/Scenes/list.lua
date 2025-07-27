@@ -18,7 +18,7 @@ local group = am.group{
 		if(win:key_down('o')) then
 			SceneHandler:set_scene('options')
 		elseif(win:key_down('s')) then
-			text_insert.active = true
+			text_insert:activate()
 		end
 	end),
 	am.translate(-250,250) ^ text_insert,
@@ -117,7 +117,7 @@ group:action(function(g)
 		group:append(resetNode)
 	end
 end)
-text_insert.onEnter = function(buffer)
+text_insert.onEnter = function(_,buffer)
 	search = buffer
 	reloadSongs()
 	local node = am.group{}
@@ -125,6 +125,15 @@ text_insert.onEnter = function(buffer)
 	node:action(function()
 		text_insert.deactivate()
 		group:remove(node)
+	end)
+end
+function text_insert.onDeactivate()
+	text_insert.color = normal
+end
+function text_insert.onActivate()
+	text_insert.color = hover
+	pcall(function()
+		songList:child(scroll):child(1).color = normal
 	end)
 end
 return am.translate(-310,0) ^ group

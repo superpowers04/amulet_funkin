@@ -12,7 +12,13 @@ function mod.new()
 	local caret = 1
 	local caretCharacter = "_"
 	local output = ""
-	function ret.onEnter(buffer)
+	function ret:onEnter(buffer)
+		-- do thing
+	end
+	function ret:onActivate(buffer)
+		-- do thing
+	end
+	function ret:onDeactivate(buffer)
 		-- do thing
 	end
 	function print(...)
@@ -84,15 +90,16 @@ function mod.new()
 		delete=function() buffer = "" end
 	}
 	local lastKey = ""
-	function ret.handleKey(v,isShift,isCtrl)
+	function ret:handleKey(v,isShift,isCtrl)
 		if(v == "space") then
 			insertCharacter(" ",caret,true)
 		elseif(v == "backspace") then
 			removeCharacter(caret,true)
 		elseif(v == "escape") then
-			ret.deactivate()
+			ret:deactivate(buffer)
 		elseif(v == "enter") then
-			ret.onEnter(buffer)
+			ret:onEnter(buffer)
+			ret:deactivate(buffer)
 		elseif(v == "left") then
 			moveCaret(caret-1,isCtrl)
 		elseif(v == "right") then
@@ -120,7 +127,7 @@ function mod.new()
 	end
 	local timerFromLastPress = 0
 	local allowRepeat = false
-	win.scene:action(function(e)
+	ret:action(function(e)
 		if not ret.active then return end
 		local keys_pressed = win:keys_pressed()
 		local keys_down = win:keys_down()
@@ -130,7 +137,7 @@ function mod.new()
 		timerFromLastPress = timerFromLastPress + am.delta_time
 		for i,v in ipairs(keys_pressed) do
 			allowRepeat = false
-			ret.handleKey(v,isShift,isCtrl)
+			ret:handleKey(v,isShift,isCtrl)
 		end
 		if(not allowRepeat) then 
 			if(timerFromLastPress > 1) then
@@ -139,10 +146,14 @@ function mod.new()
 			end
 		elseif(timerFromLastPress > 0.1) then
 			for i,v in ipairs(keys_down) do
-				ret.handleKey(v)
+				ret:handleKey(v)
 			end
 			timerFromLastPress = 0
 		end
+		ret:showText()
+	end)
+	function ret:showText()
+		self.buffer = buffer
 		local caret = caret
 		local buffer = buffer
 		if(#buffer > 30 and caret > 30) then
@@ -155,10 +166,18 @@ function mod.new()
 		end
 
 		TEXT.text = buffer
-	end)
-	function ret.deactivate()
-		TEXT.text = buffer
-		ret.active = false
+
+	end
+	function ret:deactivate()
+		self.active = false
+		CARETTEXT.text = buffer
+		TEXT.text = ""
+		self:onDeactivate(buffer)
+	end
+	function ret:activate()
+		self.active = true
+		self:showText()
+		self:onActivate(buffer)
 	end
 	return ret
 
