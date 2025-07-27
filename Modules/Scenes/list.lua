@@ -27,8 +27,8 @@ local group = am.group{
 }
 
 local songs = {}
-local search = ""
-local scroll = 1
+SONGSEARCH = SONGSEARCH or ""
+SONGINDEX = SONGINDEX or 1
 local function reloadSongs()
 
 	songList:remove_all()
@@ -57,7 +57,7 @@ local function reloadSongs()
 			return nil
 		end
 		for file in pairs(jsons) do
-			if(file:sub(-12) ~= "/events.json" and (search == "" or file:find(search))) then
+			if(file:sub(-12) ~= "/events.json" and (SONGSEARCH == "" or file:find(SONGSEARCH))) then
 				if(insts[file:gsub('[^/]+$','')]) then
 					table.insert(songs,{file})
 				else
@@ -77,7 +77,6 @@ local function reloadSongs()
 		local song = song[1]
 		songList:append(am.translate(0,index*15) ^ am.text(song:gsub('/data/',' > '):gsub('^fnfmods/','fnf > '):gsub('^mods/',' '):gsub('/charts/',' > '),nil,"left",'top'))
 	end
-	scroll = 1
 end
 reloadSongs()
 -- if(#songs == 0) then return am.scale(2) ^ am.text('NO CHARTS!') end
@@ -89,6 +88,7 @@ resetNode:action("reload",function() import.clearCache(); group:remove(resetNode
 group:append(resetNode)
 group:action(function(g)
 	if(text_insert.active) then return end
+	local scroll = SONGINDEX
 	for i,v in pairs(songs) do
 		local child = songList:child(i)
 		child.y = (scroll - i) * 15
@@ -97,7 +97,8 @@ group:action(function(g)
 	end
 	local mw = win:mouse_wheel_delta().y
 	if(mw ~= 0) then
-		scroll = math.min(math.max(scroll-math.ceil(mw),1),#songs)
+		SONGINDEX = math.min(math.max(scroll-math.ceil(mw),1),#songs)
+		scroll = SONGINDEX
 	end
 	if(#win:keys_down() == 0) then
 		keyRepeat = 0
@@ -105,20 +106,21 @@ group:action(function(g)
 	end
 	keyRepeat = keyRepeat - am.delta_time
 	if(win:key_down('up') and keyRepeat <= 0) then
-		scroll = math.max(scroll-1,1)
+		SONGINDEX = math.max(scroll-1,1)
 		keyRepeat = 0.2
 	end
 	if(win:key_down('down') and keyRepeat <= 0) then
-		scroll = math.min(scroll+1,#songs)
+		SONGINDEX = math.min(scroll+1,#songs)
 		keyRepeat = 0.2
 	end
 	if(win:key_pressed('enter')) then
-		SceneHandler:load_scene('play',songs[scroll])
+		SceneHandler:load_scene('play',songs[SONGINDEX])
 		group:append(resetNode)
 	end
 end)
 text_insert.onEnter = function(_,buffer)
-	search = buffer
+	SONGSEARCH = buffer
+	SONGINDEX = 1
 	reloadSongs()
 	-- local node = am.group{}
 	-- group:append(node)
