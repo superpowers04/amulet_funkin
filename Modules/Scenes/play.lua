@@ -240,6 +240,9 @@ this = function(...)
 
 		if(voices) then voices.volume = options.voicesVol end
 	end
+	local function calc_distance(time,speed)
+		return (time * speed)*0.42
+	end
 	local function updateNoteVisuals()
 		local speed = songMeta.speed
 		while(queuedNotes[1] and queuedNotes[1][1]-time < 4000) do
@@ -262,13 +265,13 @@ this = function(...)
 			local d
 			if(note.r and note.p) then
 				d = time
-				note.r.y2 = -(note.endTime-time)*speed
+				note.r.y2 = -calc_distance(note.endTime-d,speed)
 			else
 				d= note.t
 			end
 			local transform = note.s;
 			local diff = (time - d);
-			transform.y = (diff * speed)
+			transform.y = calc_distance(diff,speed)
 		end
 	end
 	local function on_finish()
